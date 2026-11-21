@@ -14,6 +14,7 @@ import argparse
 import csv
 import datetime as dt
 import json
+import re
 import sys
 import time
 import urllib.request
@@ -47,6 +48,12 @@ INDICATORS = {
     "usdtwd": ("美元兌台幣", "yahoo", "TWD=X"),
 }
 
+# 本益比（證交所 BWIBBU，每日、2005-09 起）：代號 → (顯示名稱, 股票代號)。存 data/<代號>.csv，欄位 date,close,source（close＝本益比）
+PE_SERIES = {
+    "2330_pe": ("台積電本益比", "2330"),
+}
+PE_START = "200509"   # 證交所本益比資料從 94 年 9 月開始
+
 
 def get(url, timeout=30):
     req = urllib.request.Request(url, headers=UA)
@@ -62,6 +69,52 @@ def roc_to_date(s):
 
 def num(s):
     return float(s.replace(",", ""))
+
+
+def twse_date(s):
+    """證交所日期，新舊格式都吃：'115/11/02'、'115年11月20日'、'099年01月29日' → '2026-11-20'"""
+    y, m, d = re.findall(r"\d+", s)[:3]
+    return f"{int(y) + 1911:04d}-{int(m):02d}-{int(d):02d}"
+
+
+def months_since(ym):
+    """從 ym（'200509'）到這個月共幾個月"""
+    today = dt.datetime.now(TPE).date()
+    return (today.year - int(ym[:4])) * 12 + today.month - int(ym[4:]) + 1
+
+
+def fetch_twse_pe(code, months):
+    """證交所『個股日本益比、殖利率及股價淨值比』：每日本益比。欄位順序新舊不同，用欄位名稱找。
+    本益比是 '-' 或 0（例如虧損）的日子跳過。"""
+    rows, skipped = {}, []
+    pause = TWSE_PAUSE + (2 if months > TWSE_MONTHS else 0)   # 補長歷史時放慢一點
+    for i, ym in enumerate(m for m in month_starts(months) if m[:6] >= PE_START):
+        if i:
+            time.sleep(pause)
+        js = None
+        for wait in (0, 15, 60):   # 證交所偶爾回傳空白或網頁（請求太密）→ 等一下再試，最多 3 次
+            time.sleep(wait)
+            try:
+                js = json.loads(get(f"https://www.twse.com.tw/rwd/zh/afterTrading/BWIBBU?date={ym}&stockNo={code}&response=json"))
+                break
+            except (ValueError, OSError):
+                js = None
+        if js is None:
+            skipped.append(ym[:6])
+            continue
+        if js.get("stat") != "OK":
+            continue
+        idx = js["fields"].index("本益比")
+        for r in js["data"]:
+            try:
+                v = num(r[idx])
+            except ValueError:
+                continue
+            if v > 0:
+                rows[twse_date(r[0])] = v
+    if skipped:
+        print(f"     ⚠ 這些月份重試 3 次仍抓不到，先跳過（下次 --full 會再補）：{', '.join(skipped)}")
+    return rows, "TWSE BWIBBU"
 
 
 def month_starts(n):
@@ -206,6 +259,26 @@ def main():
             ok += 1
         except Exception as e:
             log(args.where, code, kind, "FAIL", "", 0, repr(e)[:200])
+            print(f"FAIL {name:<18} {e!r}"[:200])
+
+    for code, (name, stock) in PE_SERIES.items():
+        if args.only and code not in args.only:
+            continue
+        full = args.full or count_rows(code) < FULL_THRESHOLD
+        try:
+            if full:
+                print(f"     {name:<18} 補歷史（{PE_START[:4]} 年起每月一次、間隔 {TWSE_PAUSE} 秒，"
+                      f"約 {months_since(PE_START) * (TWSE_PAUSE + 3) // 60} 分鐘）…")
+            rows, source = fetch_twse_pe(stock, months_since(PE_START) if full else TWSE_MONTHS_DAILY)
+            if not rows:
+                raise ValueError("回傳沒有資料")
+            total = save_csv(code, rows, source)
+            last = max(rows)
+            log(args.where, code, source, "OK", last, total)
+            print(f"OK   {name:<18} 最新 {last}  {rows[last]}  （共 {total} 天）")
+            ok += 1
+        except Exception as e:
+            log(args.where, code, "twse_pe", "FAIL", "", 0, repr(e)[:200])
             print(f"FAIL {name:<18} {e!r}"[:200])
     print(f"\n完成：{ok} 個成功。紀錄在 data/fetch_log.csv")
     return 0 if ok else 1

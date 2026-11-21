@@ -24,7 +24,7 @@ SPARK_DAYS = 63      # 小走勢圖：約 3 個月的交易日
 CALENDAR_DAYS = 30   # 天氣日曆格數
 HISTORY_DAYS = 400   # 晴雨只算最近這麼多個台股交易日（日曆、連續天數夠用）
 TPE = dt.timezone(dt.timedelta(hours=8))   # 一律用台灣時間（GitHub Actions 的機器是 UTC）
-DIGITS = {"taiex": 2, "spx": 2, "2330": 1, "vix": 2, "us10y": 3, "usdtwd": 3}   # 走勢圖數字的小數位
+DIGITS = {"taiex": 2, "spx": 2, "2330": 1, "vix": 2, "us10y": 3, "usdtwd": 3, "2330_pe": 2}   # 走勢圖數字的小數位
 
 UP, DN, FLAT = "#ef6a5f", "#3fb27f", "#a7a59e"   # 紅漲綠跌（台股習慣），風向組用灰色
 WEATHER = {
@@ -170,15 +170,26 @@ def chart_block(code, kind):
     legend = ""
     if kind == "price":   # 均線圖例：季線、年線（顏色和 JS 的 MA_LINES 一致）
         legend = "".join(f'<span><i style="border-color:{col}"></i>{label}</span>' for _, col, label in MA_LINES)
-        legend = f'<p class="legend">{legend}</p>'
-    return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}"{suf}>
-  <div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
+        legend = f'<p class="legend" data-for="price">{legend}</p>'
+    modes, pe_attr = "", ""
+    pe_code = PE_FOR.get(code)
+    if pe_code and (DATA_DIR / f"{pe_code}.csv").exists():   # 有本益比資料才出現「股價｜本益比」切換
+        pe_attr = f' data-pe="{pe_code}"'
+        modes = ('<div class="modes" role="group" aria-label="圖表類型">'
+                 '<button type="button" data-m="price" aria-pressed="true">股價</button>'
+                 '<button type="button" data-m="pe" aria-pressed="false">本益比</button></div>\n  ')
+        legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
+                   f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（證交所本益比）</span></p>')
+    return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}"{suf}{pe_attr}>
+  {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>{legend}
 </div>"""
 
 
 MA_LINES = [(60, "#e0a95a", "季線 60 日"), (240, "#7fa7d9", "年線 240 日")]   # 移動平均線：天數、顏色、名稱（只是參考座標）
+PE_FOR = {"2330": "2330_pe"}             # 哪個指標有本益比：指標代號 → 本益比資料代號（data/<代號>.csv）
+PE_MEAN, PE_BAND = "#ecebe6", "#8f8d87"  # 本益比圖：期間平均線、±1 標準差線的顏色
 RANGES = [("5D", "5天"), ("1M", "1月"), ("3M", "3月"), ("6M", "6月"), ("YTD", "今年"),
           ("1Y", "1年"), ("3Y", "3年"), ("5Y", "5年"), ("MAX", "最長")]
 
@@ -325,10 +336,19 @@ function el(tag, attrs, parent) {
 }
 
 function render(box) {
-  const data = box._data; if (!data) return;
-  const kind = box.dataset.kind, dg = +box.dataset.dg, suf = box.dataset.suf || "";
+  const pe = box._mode === "pe";                 // 「本益比」模式：畫本益比＋期間平均 ±1 標準差
+  const data = pe ? box._pe : box._data; if (!data) return;
+  const kind = pe ? "pe" : box.dataset.kind, dg = pe ? 2 : +box.dataset.dg, suf = pe ? "" : (box.dataset.suf || "");
   const r = box._range, days = data.days, c = data.c, n = days.length;
   const i0 = startIndex(days, r), last = n - 1;
+  let stat = null;
+  if (pe) {                                      // 平均和標準差用所選期間的每一天算（選 3 年＝3 年平均）
+    let s = 0, s2 = 0, k = last - i0 + 1;
+    for (let i = i0; i <= last; i++) { s += c[i]; s2 += c[i] * c[i]; }
+    const mean = s / k, sd = Math.sqrt(Math.max(s2 / k - mean * mean, 0));
+    stat = {mean, sd, z: v => sd ? (v - mean) / sd : 0};
+  }
+  const zText = v => { const z = stat.z(v); return (z >= 0 ? "+" : "−") + Math.abs(z).toFixed(1) + "σ"; };
   const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
   const W = Math.max(plot.clientWidth, 280), H = 220, pl = 4, pr = 58, pt = 10, pb = 24;
   const pts = sample(i0, n, c, Math.min(800, W * 2));
@@ -339,6 +359,7 @@ function render(box) {
     if (c[i] < lo) lo = c[i]; if (c[i] > hi) hi = c[i];
     for (const m of mas) { const v = m.v[i]; if (v != null) { if (v < lo) lo = v; if (v > hi) hi = v; } }
   }
+  if (stat) { lo = Math.min(lo, stat.mean - stat.sd); hi = Math.max(hi, stat.mean + stat.sd); }
   if (lo === hi) { lo -= 1; hi += 1; }
   const span = Math.max(last - i0, 1);
   const X = i => pl + (i - i0) / span * (W - pl - pr);
@@ -356,7 +377,15 @@ function render(box) {
     el("text", {x: W - pr + 6, y: Y(t) + 4}, svg).textContent =
       t.toLocaleString("en-US", {minimumFractionDigits: tdg, maximumFractionDigits: tdg}) + suf;
   }
-  el("line", {x1: pl, x2: W - pr, y1: Y(c[i0]), y2: Y(c[i0]), stroke: "#5a5d64", "stroke-dasharray": "3 4"}, svg);
+  const peLabels = [];
+  if (stat) {                                    // 平均線、±1 標準差線，左邊標數字
+    for (const [v, col, label] of [[stat.mean, PE_MEAN, "平均"], [stat.mean + stat.sd, PE_BAND, "+1σ"], [stat.mean - stat.sd, PE_BAND, "−1σ"]]) {
+      el("line", {x1: pl, x2: W - pr, y1: Y(v), y2: Y(v), stroke: col, "stroke-dasharray": "5 4", "stroke-width": 1.1}, svg);
+      peLabels.push([Y(v) - 4, col, `${label} ${v.toFixed(1)}`]);   // 標籤等曲線畫完再放，才不會被蓋住
+    }
+  } else {
+    el("line", {x1: pl, x2: W - pr, y1: Y(c[i0]), y2: Y(c[i0]), stroke: "#5a5d64", "stroke-dasharray": "3 4"}, svg);
+  }
   for (const m of mas) {
     const p = pts.filter(i => m.v[i] != null).map(i => X(i).toFixed(1) + "," + Y(m.v[i]).toFixed(1));
     if (p.length > 1) el("polyline", {points: p.join(" "), fill: "none", stroke: m.color, "stroke-width": 1.2,
@@ -364,13 +393,17 @@ function render(box) {
   }
   el("polyline", {points: pts.map(i => X(i).toFixed(1) + "," + Y(c[i]).toFixed(1)).join(" "),
     fill: "none", stroke: color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
+  for (const [y, col, t] of peLabels)
+    el("text", {x: pl + 2, y, style: `fill:${col};paint-order:stroke;stroke:#14161a;stroke-width:4px;stroke-linejoin:round`}, svg).textContent = t;
   el("text", {x: pl, y: H - 6}, svg).textContent = iso(days[i0]);
   el("text", {x: W - pr, y: H - 6, "text-anchor": "end"}, svg).textContent = iso(days[last]);
   const vline = el("line", {y1: pt, y2: H - pb, stroke: "#8f8d87", visibility: "hidden"}, svg);
   const dot = el("circle", {r: 4, fill: color, stroke: "#14161a", "stroke-width": 2, visibility: "hidden"}, svg);
   plot.replaceChildren(svg);
 
-  const summary = `<b>${RANGE_LABEL[r]}</b>　<span style="color:${ch.color}">${ch.text}</span>　<span style="color:#8f8d87">${iso(days[i0])} → ${iso(days[last])}</span>`;
+  const summary = pe
+    ? `<b>${RANGE_LABEL[r]}</b>　本益比 ${c[last].toFixed(2)} 倍　<span class="nw"><span style="color:#8f8d87">平均</span> ${stat.mean.toFixed(1)}</span>　<span class="nw"><span style="color:#8f8d87">位置</span> ${zText(c[last])}</span>`
+    : `<b>${RANGE_LABEL[r]}</b>　<span style="color:${ch.color}">${ch.text}</span>　<span style="color:#8f8d87">${iso(days[i0])} → ${iso(days[last])}</span>`;
   readout.innerHTML = summary;
 
   const show = ev => {
@@ -379,6 +412,10 @@ function render(box) {
     const i = Math.max(i0, Math.min(last, Math.round(i0 + (x - pl) / (W - pl - pr) * span)));
     vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
     dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(c[i])); dot.setAttribute("visibility", "visible");
+    if (pe) {
+      readout.innerHTML = `<b>${iso(days[i])}</b>　本益比 ${c[i].toFixed(2)} 倍　<span class="nw"><span style="color:#8f8d87">較期間平均</span> ${zText(c[i])}</span>`;
+      return;
+    }
     const ci = change(c[i0], c[i], kind, dg);
     let extra = "";
     const y = mas.find(m => m.n === 240);
@@ -407,6 +444,16 @@ document.querySelectorAll(".chart").forEach(box => {
     box._range = b.dataset.r;
     box.querySelectorAll(".ranges button").forEach(x => x.setAttribute("aria-pressed", x === b));
     render(box);
+  }));
+  box.querySelectorAll(".modes button").forEach(b => b.addEventListener("click", () => {   // 股價｜本益比
+    box._mode = b.dataset.m;
+    box.querySelectorAll(".modes button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    box.querySelectorAll(".legend").forEach(l => { l.hidden = l.dataset.for !== box._mode; });
+    if (box._mode === "pe" && !box._pe) {
+      box.querySelector(".readout").textContent = "載入中…";
+      loadSeries(box.dataset.pe).then(d => { box._pe = d; render(box); })
+        .catch(() => { box.querySelector(".readout").textContent = "本益比資料載入失敗。"; });
+    } else render(box);
   }));
 });
 let resizeTimer;
@@ -484,6 +531,8 @@ def build():
   {chart_block(code, kind)}
 </details>""")
             write_series(code, s)
+            if PE_FOR.get(code) and load(PE_FOR[code]):   # 本益比也寫一份，點「本益比」時才載入
+                write_series(PE_FOR[code], load(PE_FOR[code]))
         groups_html.append(f'<section class="group"><h2>{group}</h2>{"".join(rows_html)}</section>')
 
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
@@ -533,6 +582,12 @@ details[open] summary.row{{background:#1c1f24}}
 .spark{{width:100%;height:30px}}
 .chart{{margin:8px 6px 16px}}
 .ranges{{display:flex;flex-wrap:wrap;gap:4px}}
+.modes{{display:inline-flex;margin-bottom:8px;border:1px solid #3a3d44;border-radius:8px;overflow:hidden}}
+.modes button{{font:inherit;font-size:13px;min-height:34px;padding:0 16px;border:0;background:transparent;color:#c9c7c0;cursor:pointer}}
+.modes button+button{{border-left:1px solid #3a3d44}}
+.modes button:hover{{color:#ecebe6;background:#1c1f24}}
+.modes button:focus-visible{{outline:2px solid #d97757;outline-offset:-2px}}
+.modes button[aria-pressed=true]{{background:#d97757;color:#14161a;font-weight:600}}
 .ranges button{{font:inherit;font-size:13px;min-height:32px;min-width:44px;padding:0 8px;border-radius:16px;border:1px solid #3a3d44;background:transparent;color:#c9c7c0;cursor:pointer}}
 .ranges button:hover{{border-color:#8f8d87;color:#ecebe6}}
 .ranges button:focus-visible{{outline:2px solid #d97757;outline-offset:1px}}
@@ -541,6 +596,7 @@ details[open] summary.row{{background:#1c1f24}}
 .readout b{{font-weight:600}}
 .nw{{white-space:nowrap}}
 .legend{{margin:6px 0 0;font-size:12px;color:#8f8d87;display:flex;gap:14px;flex-wrap:wrap}}
+.legend[hidden]{{display:none}}
 .legend i{{display:inline-block;width:18px;border-top:2px dashed;vertical-align:middle;margin-right:5px}}
 .plot svg{{display:block;width:100%;height:220px;touch-action:pan-y;cursor:crosshair}}
 .plot text{{font-size:11px;fill:#8f8d87;font-variant-numeric:tabular-nums}}
@@ -596,6 +652,7 @@ details[open] summary.row{{background:#1c1f24}}
 <script>
 const UP="{UP}", DN="{DN}", NEUTRAL="#c9c7c0";
 const MA_LINES = {ma_js};
+const PE_MEAN = "{PE_MEAN}", PE_BAND = "{PE_BAND}";
 {chart_js}
 </script>
 </body>

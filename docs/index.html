@@ -67,7 +67,7 @@ details[open] summary.row{background:#1c1f24}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><b>market_weather</b><span>更新於 2026-11-21 16:24</span></div>
+  <div class="top"><b>market_weather</b><span>更新於 2026-11-21 16:29</span></div>
   
   <div class="cols">
     <aside>
@@ -219,7 +219,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611211624";
+    s.src = "series/" + code + ".js?v=202611211629";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);

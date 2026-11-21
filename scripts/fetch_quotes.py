@@ -145,7 +145,7 @@ def save_csv(code, rows, source):
     for d, c in rows.items():
         old[d] = (c, source)
     with path.open("w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")   # 統一 LF：Linux（GitHub）和 Windows 寫出來一樣
         w.writerow(["date", "close", "source"])
         for d in sorted(old):
             w.writerow([d, *old[d]])
@@ -164,7 +164,7 @@ def log(where, code, source, status, last_date, rows, note=""):
     path = DATA_DIR / "fetch_log.csv"
     new = not path.exists()
     with path.open("a", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")   # 統一 LF：Linux（GitHub）和 Windows 寫出來一樣
         if new:
             w.writerow(["run_at", "where", "indicator", "source", "status", "last_date", "rows", "note"])
         w.writerow([dt.datetime.now(TPE).strftime("%Y-%m-%d %H:%M:%S"), where, code, source, status, last_date, rows, note])

@@ -1,0 +1,11 @@
+# 敏感資料：家庭持股、真實數值，整個資料夾封鎖（大寫、小寫各一行，Mac／Linux 的 Git 分大小寫）
+PRIVATE_*/
+private_*/
+
+# 暫存
+Temp_file/
+__pycache__/
+*.pyc
+
+# Excel 開檔時產生的鎖定檔
+~$*

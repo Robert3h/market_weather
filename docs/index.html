@@ -56,6 +56,10 @@ details[open] summary.row{background:#1c1f24}
 .nw{white-space:nowrap}
 .legend{margin:6px 0 0;font-size:12px;color:#8f8d87;display:flex;gap:14px;flex-wrap:wrap}
 .legend[hidden]{display:none}
+.legend i.sw{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}
+.chg .sub{display:block;font-size:12px;color:#8f8d87}
+.ndc{margin:8px 6px 16px}
+.note{margin:8px 0 0;font-size:12px;line-height:1.6;color:#8f8d87}
 .legend i{display:inline-block;width:18px;border-top:2px dashed;vertical-align:middle;margin-right:5px}
 .plot svg{display:block;width:100%;height:220px;touch-action:pan-y;cursor:crosshair}
 .plot text{font-size:11px;fill:#8f8d87;font-variant-numeric:tabular-nums}
@@ -69,6 +73,7 @@ details[open] summary.row{background:#1c1f24}
   .row{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.9fr);min-height:56px}
   .spark{display:none}
   .ranges{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px}
+  .ranges.r6{grid-template-columns:repeat(6,minmax(0,1fr))}
   .ranges button{min-width:0;padding:0;font-size:12px;min-height:34px}
   .hero .word{font-size:64px}
   .hero .icon{width:64px;height:64px}
@@ -77,7 +82,7 @@ details[open] summary.row{background:#1c1f24}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><b>market_weather</b><span>更新於 2026-11-21 18:26</span></div>
+  <div class="top"><b>market_weather</b><span>更新於 2026-11-21 21:45</span></div>
   
   <div class="cols">
     <aside>
@@ -204,9 +209,25 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
 </div>
+</details></section><section class="group"><h2>景氣（每月）</h2><details>
+  <summary class="row">
+    <span class="name">景氣燈號<small>國發會 · 2026 年 9 月</small></span>
+    <span class="value">41 分</span>
+    <span class="chg"><span style="color:#e5484d">● 紅燈</span><small class="sub">較上月 +1</small></span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,26.0 4.3,22.2 6.6,20.2 8.9,15.4 11.1,13.5 13.4,11.6 15.7,7.8 18.0,6.8 20.3,4.9 22.6,7.8 24.9,3.9 27.1,8.7 29.4,10.6 31.7,8.7 34.0,4.9 36.3,7.8 38.6,5.8 40.9,7.8 43.1,9.7 45.4,11.6 47.7,13.5 50.0,13.5 52.3,11.6 54.6,8.7 56.9,7.8 59.1,5.8 61.4,4.9 63.7,3.9 66.0,2.0 68.3,3.9 70.6,3.0 72.9,3.9 75.1,2.0 77.4,2.0 79.7,3.0 82.0,2.0" stroke="#e5484d" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+  </summary>
+  <div class="ndc" data-streak="10">
+  <div class="modes" role="group" aria-label="圖表類型"><button type="button" data-m="signal" aria-pressed="true">燈號</button><button type="button" data-m="lead" aria-pressed="false">領先指標</button></div>
+  <div class="ranges r6" role="group" aria-label="選擇期間"><button type="button" data-r="1Y" aria-pressed="false">1年</button><button type="button" data-r="3Y" aria-pressed="false">3年</button><button type="button" data-r="5Y" aria-pressed="true">5年</button><button type="button" data-r="10Y" aria-pressed="false">10年</button><button type="button" data-r="20Y" aria-pressed="false">20年</button><button type="button" data-r="MAX" aria-pressed="false">最長</button></div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div>
+  <p class="legend" data-for="signal"><span><i class="sw" style="background:#3d6fd1"></i>藍 9–16</span><span><i class="sw" style="background:#8fb8e8"></i>黃藍 17–22</span><span><i class="sw" style="background:#3fb27f"></i>綠 23–31</span><span><i class="sw" style="background:#f0a03c"></i>黃紅 32–37</span><span><i class="sw" style="background:#e5484d"></i>紅 38–45</span></p>
+  <p class="legend" data-for="lead" hidden><span><i style="border-color:#ecebe6;border-top-style:solid"></i>領先指標</span><span><i style="border-color:#7fa7d9;border-top-style:solid"></i>同時指標</span><span>（不含趨勢；100＝長期趨勢）</span></p>
+  <p class="note">每月一筆，約每月 27 日公布上個月，所以比股市慢 1～2 個月。9 個構成項目裡有一項是股價指數。領先指標通常比燈號早幾個月轉彎。</p>
+  </div>
 </details></section>
       <div class="foot">
-        <p style="margin:0">點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率）。</p>
+        <p style="margin:0">點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率）、國發會（景氣燈號，政府資料開放平台）。</p>
         <details>
           <summary>晴雨怎麼判斷（草案）</summary>
           <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
@@ -221,6 +242,8 @@ details[open] summary.row{background:#1c1f24}
 const UP="#ef6a5f", DN="#3fb27f", NEUTRAL="#c9c7c0";
 const MA_LINES = [{"n": 60, "color": "#e0a95a"}, {"n": 240, "color": "#7fa7d9"}];
 const PE_MEAN = "#ecebe6", PE_BAND = "#8f8d87";
+const NDC_COLORS = ["#3d6fd1", "#8fb8e8", "#3fb27f", "#f0a03c", "#e5484d"], NDC_NAMES = ["藍", "黃藍", "綠", "黃紅", "紅"];
+const NDC_LEAD = "#ecebe6", NDC_COIN = "#7fa7d9";
 
 window.MW_SERIES = window.MW_SERIES || {};
 const DAY = 86400000, SVGNS = "http://www.w3.org/2000/svg";
@@ -232,15 +255,15 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611211826";
+    s.src = "series/" + code + ".js?v=202611212145";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);
   });
   return loading[code];
 }
-function decode(raw) {            // 日期是「和前一筆差幾天」，還原成 1970 起的天數
-  if (!raw.days) { let t = 0; raw.days = raw.d.map(x => (t += x)); }
+function decode(raw) {            // 日期是「和前一筆差幾天」，還原成 1970 起的天數（景氣燈號是每月資料，沒有 d，不用還原）
+  if (!raw.days && raw.d) { let t = 0; raw.days = raw.d.map(x => (t += x)); }
   return raw;
 }
 const iso = day => new Date(day * DAY).toISOString().slice(0, 10);
@@ -437,6 +460,105 @@ window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => document.querySelectorAll("details[open] .chart").forEach(render), 150);
 });
+
+
+// 景氣燈號：每月一根長條（顏色＝燈號），另一個模式畫領先、同時指標
+function ndcRender(box) {
+  const data = box._data; if (!data) return;
+  const lead = box._mode === "lead", n = data.s.length, last = n - 1;
+  const [y0, m0] = data.start.split("-").map(Number);
+  const ym = i => { const t = y0 * 12 + m0 - 1 + i; return Math.floor(t / 12) + "-" + String(t % 12 + 1).padStart(2, "0"); };
+  const first = data.s.findIndex(v => v != null);
+  const months = {"1Y":12,"3Y":36,"5Y":60,"10Y":120,"20Y":240}[box._range];
+  const i0 = Math.max(lead ? 0 : first, months ? n - months : 0);
+  const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
+  const W = Math.max(plot.clientWidth, 280), H = 220, pl = 4, pr = 58, pt = 10, pb = 24;
+  const cnt = n - i0, slot = (W - pl - pr) / cnt;
+  const X = i => pl + (i - i0 + 0.5) * slot;
+  let lo, hi;
+  if (lead) {
+    lo = Infinity; hi = -Infinity;
+    for (let i = i0; i < n; i++) for (const v of [data.ld[i], data.co[i]]) if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    lo = Math.min(lo, 100); hi = Math.max(hi, 100); const pad = (hi - lo) * 0.05 || 1; lo -= pad; hi += pad;
+  } else { lo = 8; hi = 45; }   // 最低分是 9，底線放 8，9 分的月份才看得到長條
+  const Y = v => pt + (1 - (v - lo) / (hi - lo)) * (H - pt - pb);
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `景氣${lead ? "領先指標" : "燈號"}：${ym(i0)} 到 ${ym(last)}`});
+  if (lead) {
+    const ticks = niceTicks(lo, hi, 4);
+    for (const t of ticks) {
+      el("line", {x1: pl, x2: W - pr, y1: Y(t), y2: Y(t), stroke: t === 100 ? "#5a5d64" : "#262930", "stroke-dasharray": t === 100 ? "3 4" : ""}, svg);
+      el("text", {x: W - pr + 6, y: Y(t) + 4}, svg).textContent = t;
+    }
+    for (const [key, col] of [["co", NDC_COIN], ["ld", NDC_LEAD]]) {
+      const p = []; for (let i = i0; i < n; i++) if (data[key][i] != null) p.push(X(i).toFixed(1) + "," + Y(data[key][i]).toFixed(1));
+      el("polyline", {points: p.join(" "), fill: "none", stroke: col, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
+    }
+  } else {
+    for (const [v, t] of [[17, "17"], [23, "23"], [32, "32"], [38, "38"]]) {   // 燈號分界：黃藍、綠、黃紅、紅的起點
+      el("line", {x1: pl, x2: W - pr, y1: Y(v - 0.5), y2: Y(v - 0.5), stroke: "#262930"}, svg);
+      el("text", {x: W - pr + 6, y: Y(v - 0.5) + 4}, svg).textContent = t;
+    }
+    const bw = Math.max(slot * 0.78, 0.8);
+    for (let i = i0; i < n; i++) if (data.s[i] != null)
+      el("rect", {x: (X(i) - bw / 2).toFixed(2), y: Y(data.s[i]).toFixed(1), width: bw.toFixed(2), height: (Y(8) - Y(data.s[i])).toFixed(1), fill: NDC_COLORS[data.l[i]]}, svg);
+  }
+  el("text", {x: pl, y: H - 6}, svg).textContent = ym(i0);
+  el("text", {x: W - pr, y: H - 6, "text-anchor": "end"}, svg).textContent = ym(last);
+  const vline = el("line", {y1: pt, y2: H - pb, stroke: "#8f8d87", visibility: "hidden"}, svg);
+  plot.replaceChildren(svg);
+
+  const lastScored = data.s.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+  const dot = (k) => `<span style="color:${NDC_COLORS[k]}">●</span>`;
+  let summary;
+  if (lead) {
+    const li = data.ld.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+    const d6 = li >= 6 && data.ld[li - 6] != null ? data.ld[li] - data.ld[li - 6] : null;
+    summary = `<b>${ym(li)}</b>　領先 ${data.ld[li].toFixed(2)}　同時 ${data.co[li] != null ? data.co[li].toFixed(2) : "—"}` +
+      (d6 != null ? `　<span class="nw"><span style="color:#8f8d87">領先較半年前</span> ${d6 >= 0 ? "+" : "−"}${Math.abs(d6).toFixed(2)}</span>` : "");
+  } else {
+    const c = [0, 0, 0, 0, 0]; for (let i = i0; i < n; i++) if (data.l[i] != null) c[data.l[i]]++;
+    const order = [4, 3, 2, 1, 0];
+    summary = `<b>${ym(i0)} 起</b>　` + order.filter(k => c[k]).map(k => `<span class="nw">${dot(k)} ${NDC_NAMES[k]} ${c[k]}</span>`).join("　") +
+      `　<span style="color:#8f8d87">（個月）</span>　<span class="nw"><span style="color:#8f8d87">最新</span> ${NDC_NAMES[data.l[lastScored]]}燈連續 ${box.dataset.streak} 個月</span>`;
+  }
+  readout.innerHTML = summary;
+  const show = ev => {
+    const rect = svg.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) / rect.width * W;
+    const i = Math.max(i0, Math.min(last, Math.floor(i0 + (x - pl) / slot)));
+    vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
+    readout.innerHTML = lead
+      ? `<b>${ym(i)}</b>　領先 ${data.ld[i] != null ? data.ld[i].toFixed(2) : "—"}　同時 ${data.co[i] != null ? data.co[i].toFixed(2) : "—"}`
+      : data.s[i] != null ? `<b>${ym(i)}</b>　${dot(data.l[i])} ${NDC_NAMES[data.l[i]]}燈　${data.s[i]} 分` : `<b>${ym(i)}</b>　還沒公布`;
+  };
+  const hide = () => { vline.setAttribute("visibility", "hidden"); readout.innerHTML = summary; };
+  svg.addEventListener("pointermove", show);
+  svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", hide);
+  svg.addEventListener("pointercancel", hide);
+}
+document.querySelectorAll(".ndc").forEach(box => {
+  box._range = "5Y"; box._mode = "signal";
+  const det = box.closest("details");
+  det.addEventListener("toggle", () => {
+    if (!det.open) return;
+    if (box._data) return ndcRender(box);
+    loadSeries("ndc").then(d => { box._data = d; ndcRender(box); })
+      .catch(() => { box.querySelector(".readout").textContent = "景氣資料載入失敗。"; });
+  });
+  box.querySelectorAll(".ranges button").forEach(b => b.addEventListener("click", () => {
+    box._range = b.dataset.r;
+    box.querySelectorAll(".ranges button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    ndcRender(box);
+  }));
+  box.querySelectorAll(".modes button").forEach(b => b.addEventListener("click", () => {
+    box._mode = b.dataset.m;
+    box.querySelectorAll(".modes button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    box.querySelectorAll(".legend").forEach(l => { l.hidden = l.dataset.for !== box._mode; });
+    ndcRender(box);
+  }));
+});
+window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll("details[open] .ndc").forEach(ndcRender), 160));
 
 </script>
 </body>

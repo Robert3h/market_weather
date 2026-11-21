@@ -1,0 +1,49 @@
+# 每天自動抓行情、重建網站（GitHub Actions）
+# 排程用 UTC：台灣時間 = UTC + 8。GitHub 排程常會晚幾分鐘到半小時，正常。
+name: 每日更新
+
+on:
+  schedule:
+    - cron: "0 7 * * 1-5"     # 台灣 15:00（週一～五）：台股收盤後
+    - cron: "30 22 * * 1-5"   # 台灣隔天 06:30（週二～六）：美股收盤後
+  push:                        # 推上新程式時，立刻重跑一次
+    branches: [main]
+    paths: ["scripts/**", ".github/workflows/**"]
+  workflow_dispatch:           # 在 GitHub 網頁 Actions 頁籤可以手動按「Run workflow」
+
+permissions:
+  contents: write              # 要把新資料 commit 回 repo
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 抓行情
+        run: python3 -I scripts/fetch_quotes.py --where "GitHub Actions"
+
+      - name: 重建網站
+        run: python3 -I scripts/build_site.py
+
+      - name: 有新資料才 commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          if git diff --cached --quiet; then
+            echo "完全沒有變化，不 commit。"
+            exit 0
+          fi
+          if git diff --cached --quiet -- 'data/*.csv' ':!data/fetch_log.csv' && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "行情沒有變化（可能是假日），不 commit。"
+            exit 0
+          fi
+          git commit -m "自動更新資料 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+          git pull --rebase origin main
+          git push

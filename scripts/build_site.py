@@ -23,6 +23,7 @@ SERIES_DIR = ROOT / "docs" / "series"   # 每個指標的完整歷史，點開�
 SPARK_DAYS = 63      # 小走勢圖：約 3 個月的交易日
 CALENDAR_DAYS = 30   # 天氣日曆格數
 HISTORY_DAYS = 400   # 晴雨只算最近這麼多個台股交易日（日曆、連續天數夠用）
+TPE = dt.timezone(dt.timedelta(hours=8))   # 一律用台灣時間（GitHub Actions 的機器是 UTC）
 DIGITS = {"taiex": 2, "spx": 2, "2330": 1, "vix": 2, "us10y": 3, "usdtwd": 3}   # 走勢圖數字的小數位
 
 UP, DN, FLAT = "#ef6a5f", "#3fb27f", "#a7a59e"   # 紅漲綠跌（台股習慣），風向組用灰色
@@ -414,7 +415,7 @@ def build():
 
     tw_last = series_map["taiex"][-1][0]
     us_last = series_map["spx"][-1][0]
-    built = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    built = dt.datetime.now(TPE).strftime("%Y-%m-%d %H:%M")
 
     # 天氣日曆
     cal = hist[-CALENDAR_DAYS:]
@@ -460,7 +461,7 @@ def build():
         groups_html.append(f'<section class="group"><h2>{group}</h2>{"".join(rows_html)}</section>')
 
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
-    chart_js = CHART_JS.replace("__BUILD__", dt.datetime.now().strftime("%Y%m%d%H%M"))   # 讓瀏覽器拿到最新的資料檔
+    chart_js = CHART_JS.replace("__BUILD__", dt.datetime.now(TPE).strftime("%Y%m%d%H%M"))   # 讓瀏覽器拿到最新的資料檔
 
     page = f"""<!doctype html>
 <html lang="zh-Hant-TW">

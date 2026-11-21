@@ -21,7 +21,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent
 REMOTE_URL = "https://github.com/Robert3h/market_weather.git"
-PUBLIC_PATHS = ["README.md", ".gitignore", "scripts", "data", "docs"]   # 只有這些會公開
+PUBLIC_PATHS = ["README.md", ".gitignore", ".github", "scripts", "data", "docs"]   # 只有這些會公開
+SYNC_PATHS = ["data", "docs"]   # 這兩個由 GitHub Actions 每天更新，以 GitHub 上的為準
 SSL = ["-c", "http.sslBackend=schannel"] if os.name == "nt" else []
 
 HOOK = """#!/bin/sh
@@ -53,6 +54,15 @@ def setup():
         hook.write_text(HOOK, encoding="utf-8", newline="\n")
 
 
+def sync_from_github():
+    """data/、docs/ 每天由 GitHub Actions 更新，推之前先拿回本機 master，免得本機舊資料把它蓋掉。
+    本機自己跑 fetch_quotes 產生、還沒 commit 的資料會被 GitHub 版取代（GitHub 版才是每天累積的正本）。"""
+    git("checkout", "origin/main", "--", *SYNC_PATHS)
+    if git("diff", "--cached", "--name-only", "--", *SYNC_PATHS):
+        git("commit", "-m", "同步 GitHub 上的每日資料", "--", *SYNC_PATHS)
+        print("已把 GitHub 上最新的 data/、docs/ 同步回本機 master（已 commit）。\n")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-m", "--message", default=f"更新網站與資料 {dt.date.today()}")
@@ -65,6 +75,7 @@ def main():
 
     git(*SSL, "fetch", "origin", "main")
     parent = git("rev-parse", "origin/main")
+    sync_from_github()
 
     # 用一個暫時的 index，只放 PUBLIC_PATHS 的檔案（內容取自 master 最新 commit）
     env = dict(os.environ, GIT_INDEX_FILE=str(ROOT / ".git" / "public-index"))

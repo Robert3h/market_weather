@@ -24,7 +24,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 UA = {"User-Agent": "Mozilla/5.0 (market_weather personal dashboard)"}
-TWSE_MONTHS = 13   # 證交所一次給一個月，抓近 13 個月 ≈ 一年多
+TWSE_MONTHS = 13   # 證交所一次給一個月；抓全部歷史時抓近 13 個月
+TWSE_MONTHS_DAILY = 2   # 平常每天只抓近 2 個月（請求少，比較不會被擋）
+TPE = dt.timezone(dt.timedelta(hours=8))   # 一律用台灣時間（GitHub Actions 的機器是 UTC）
 TWSE_PAUSE = 3     # 證交所請求太快會被暫時封鎖，每次間隔 3 秒
 
 FULL_THRESHOLD = 1000   # CSV 少於這麼多天，就自動抓全部歷史
@@ -63,7 +65,7 @@ def num(s):
 
 
 def month_starts(n):
-    today = dt.date.today()
+    today = dt.datetime.now(TPE).date()
     y, m = today.year, today.month
     out = []
     for _ in range(n):
@@ -74,10 +76,10 @@ def month_starts(n):
     return list(reversed(out))
 
 
-def fetch_twse_index(_):
+def fetch_twse_index(_, months=TWSE_MONTHS):
     """證交所『市場成交資訊』：每日加權指數收盤。"""
     rows = {}
-    for i, ym in enumerate(month_starts(TWSE_MONTHS)):
+    for i, ym in enumerate(month_starts(months)):
         if i:
             time.sleep(TWSE_PAUSE)
         js = json.loads(get(f"https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?date={ym}&response=json"))
@@ -89,10 +91,10 @@ def fetch_twse_index(_):
     return rows, "TWSE FMTQIK"
 
 
-def fetch_twse_stock(code):
+def fetch_twse_stock(code, months=TWSE_MONTHS):
     """證交所『個股日成交資訊』：每日收盤價。"""
     rows = {}
-    for i, ym in enumerate(month_starts(TWSE_MONTHS)):
+    for i, ym in enumerate(month_starts(months)):
         if i:
             time.sleep(TWSE_PAUSE)
         js = json.loads(get(f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={ym}&stockNo={code}&response=json"))
@@ -165,7 +167,7 @@ def log(where, code, source, status, last_date, rows, note=""):
         w = csv.writer(f)
         if new:
             w.writerow(["run_at", "where", "indicator", "source", "status", "last_date", "rows", "note"])
-        w.writerow([dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), where, code, source, status, last_date, rows, note])
+        w.writerow([dt.datetime.now(TPE).strftime("%Y-%m-%d %H:%M:%S"), where, code, source, status, last_date, rows, note])
 
 
 def main():
@@ -189,7 +191,12 @@ def main():
             if kind == "yahoo":
                 rows, source = fetch_yahoo(param, full=full)
             else:
-                rows, source = SOURCES[kind](param)
+                try:
+                    rows, source = SOURCES[kind](param, TWSE_MONTHS if full else TWSE_MONTHS_DAILY)
+                except Exception as e:   # 證交所被擋（例如 GitHub 的美國機器）→ 改用 Yahoo 備案
+                    print(f"     {name:<18} 證交所失敗（{e!r}"[:120] + "），改用 Yahoo 備案")
+                    log(args.where, code, kind, "FAIL", "", 0, repr(e)[:200])
+                    rows, source = fetch_yahoo(BACKFILL[code])
             if not rows:
                 raise ValueError("回傳沒有資料")
             total = save_csv(code, rows, source)

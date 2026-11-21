@@ -9,6 +9,7 @@
 
 歷史資料：CSV 不存在或加 --full 時，從 Yahoo 抓「全部歷史」（每天一筆）；平常只抓近 2 年。
 台股兩個指標：較早的歷史用 Yahoo 補，近 13 個月以證交所官方數字為準（同一天會覆蓋 Yahoo）。
+另外抓國發會景氣燈號（每月）→ data/ndc_signal.csv（month,score,light,leading,coincident），每次整份覆蓋。
 """
 import argparse
 import csv
@@ -188,6 +189,52 @@ def fetch_yahoo(symbol, full=False):
 SOURCES = {"twse_index": fetch_twse_index, "twse_stock": fetch_twse_stock, "yahoo": fetch_yahoo}
 
 
+# 國發會「景氣指標及燈號」（政府資料開放平台 dataset 6099，每月一筆、1984 年起有燈號）。
+# 國發會自己的網站 index.ndc.gov.tw 擋程式（403），所以用開放平台的 ZIP。下載網址每次從平台查，查不到用這個。
+NDC_DATASET = "https://data.gov.tw/api/v2/rest/dataset/6099"
+NDC_ZIP_FALLBACK = ("https://ws.ndc.gov.tw/Download.ashx?u=LzAwMS9hZG1pbmlzdHJhdG9yLzEwL3JlbGZpbGUvNTc4MS82MzkyL2VhMjM1YmQ5LWQwNTItNGE2OS1hYmZjLWQ1Yzc4NWQzZDBlMi56aXA%3d"
+                    "&n=5pmv5rCj5oyH5qiZ5Y%2bK54eI6JmfLnppcA%3d%3d&icon=.zip")
+NDC_FILE = "景氣指標與燈號.csv"
+NDC_LIGHTS = {"藍", "黃藍", "綠", "黃紅", "紅"}
+
+
+def fetch_ndc():
+    """回傳 [(月份 'YYYY-MM', 分數或 '', 燈號或 '', 領先指標不含趨勢, 同時指標不含趨勢)]。
+    國發會每月會回頭修正舊資料，所以每次整份覆蓋。"""
+    import io, zipfile
+    url = NDC_ZIP_FALLBACK
+    try:
+        for d in json.loads(get(NDC_DATASET))["result"].get("distribution", []):
+            if d.get("resourceDownloadUrl", "").lower().endswith("zip") or d.get("resourceFormat") == "ZIP":
+                url = d["resourceDownloadUrl"]
+                break
+    except Exception:
+        pass
+    z = zipfile.ZipFile(io.BytesIO(get(url, timeout=90)))
+    name = next(n for n in z.namelist() if n.split("/")[-1] == NDC_FILE)   # 不能用 endswith：會抓到 schema-景氣指標與燈號.csv
+    out = []
+    for r in csv.DictReader(io.StringIO(z.read(name).decode("utf-8-sig"))):
+        ym = r["Date"].strip()
+        if not re.fullmatch(r"\d{6}", ym):
+            continue
+        score, light = r["景氣對策信號綜合分數"].strip(), r["景氣對策信號"].strip()
+        if not score.isdigit() or light not in NDC_LIGHTS:
+            score, light = "", ""
+        lead, coin = r["領先指標不含趨勢指數"].strip(), r["同時指標不含趨勢指數"].strip()
+        out.append((f"{ym[:4]}-{ym[4:]}", score, light,
+                    f"{float(lead):.2f}" if lead else "", f"{float(coin):.2f}" if coin else ""))
+    if not any(s for _, s, *_ in out):
+        raise ValueError("ZIP 裡找不到燈號資料")
+    return out
+
+
+def save_ndc(rows):
+    with (DATA_DIR / "ndc_signal.csv").open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["month", "score", "light", "leading", "coincident"])
+        w.writerows(rows)
+
+
 def save_csv(code, rows, source):
     path = DATA_DIR / f"{code}.csv"
     old = {}
@@ -280,6 +327,18 @@ def main():
         except Exception as e:
             log(args.where, code, "twse_pe", "FAIL", "", 0, repr(e)[:200])
             print(f"FAIL {name:<18} {e!r}"[:200])
+
+    if not args.only or "ndc_signal" in args.only:   # 國發會景氣燈號（每月）
+        try:
+            rows = fetch_ndc()
+            save_ndc(rows)
+            last = [r for r in rows if r[1]][-1]
+            log(args.where, "ndc_signal", "data.gov.tw 6099", "OK", last[0], len(rows))
+            print(f"OK   {'國發會景氣燈號':<18} 最新 {last[0]}  {last[1]} 分 {last[2]}  （共 {len(rows)} 個月）")
+            ok += 1
+        except Exception as e:
+            log(args.where, "ndc_signal", "data.gov.tw 6099", "FAIL", "", 0, repr(e)[:200])
+            print(f"FAIL {'國發會景氣燈號':<18} {e!r}"[:200])
     print(f"\n完成：{ok} 個成功。紀錄在 data/fetch_log.csv")
     return 0 if ok else 1
 

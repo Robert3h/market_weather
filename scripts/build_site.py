@@ -45,7 +45,13 @@ ROWS = [
     ("us10y", "美債 10 年殖利率", "US10Y", "風向", "point"),
     ("usdtwd", "美元兌台幣", "USD/TWD", "風向", "point"),
 ]
-SOURCES_TEXT = "證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率）"
+SOURCES_TEXT = "證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率）、國發會（景氣燈號，政府資料開放平台）"
+
+# 國發會景氣對策信號：燈號 → (顏色, 分數範圍)。顏色從冷到熱，和國發會圖一樣藍→綠→紅
+NDC_LIGHTS = [("藍", "#3d6fd1", "9–16"), ("黃藍", "#8fb8e8", "17–22"), ("綠", "#3fb27f", "23–31"),
+              ("黃紅", "#f0a03c", "32–37"), ("紅", "#e5484d", "38–45")]
+NDC_RANGES = [("1Y", "1年"), ("3Y", "3年"), ("5Y", "5年"), ("10Y", "10年"), ("20Y", "20年"), ("MAX", "最長")]
+NDC_LEAD, NDC_COIN = "#ecebe6", "#7fa7d9"   # 領先、同時指標（不含趨勢）線的顏色
 
 
 # ---------- 讀資料 ----------
@@ -162,6 +168,164 @@ def write_series(code, series):
     (SERIES_DIR / f"{code}.js").write_text(f"MW_SERIES[{json.dumps(code)}]={body};\n", encoding="utf-8")
 
 
+def load_ndc():
+    """data/ndc_signal.csv → [(月份, 分數或 None, 燈號或 '', 領先, 同時)]"""
+    path = DATA_DIR / "ndc_signal.csv"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as f:
+        return [(r["month"], int(r["score"]) if r["score"] else None, r["light"],
+                 float(r["leading"]) if r["leading"] else None, float(r["coincident"]) if r["coincident"] else None)
+                for r in csv.DictReader(f)]
+
+
+def write_ndc_series(rows):
+    """docs/series/ndc.js：起始月份＋每月的分數、燈號（0＝藍…4＝紅）、領先、同時。"""
+    idx = {name: i for i, (name, _, _) in enumerate(NDC_LIGHTS)}
+    body = json.dumps({"start": rows[0][0], "s": [r[1] for r in rows], "l": [idx.get(r[2]) for r in rows],
+                       "ld": [r[3] for r in rows], "co": [r[4] for r in rows]}, separators=(",", ":"))
+    SERIES_DIR.mkdir(parents=True, exist_ok=True)
+    (SERIES_DIR / "ndc.js").write_text(f'MW_SERIES["ndc"]={body};\n', encoding="utf-8")
+
+
+def ndc_row(rows):
+    """「景氣（每月）」那一行：最新燈號、分數、和上個月比，展開是每月燈號長條圖。"""
+    scored = [r for r in rows if r[1] is not None]
+    if not scored:
+        return ""
+    ym, score, light = scored[-1][:3]
+    color = dict((n, c) for n, c, _ in NDC_LIGHTS)[light]
+    diff = score - scored[-2][1] if len(scored) > 1 else 0
+    diff_txt = f"較上月 {'+' if diff > 0 else '−' if diff < 0 else '±'}{abs(diff)}"
+    streak = 0
+    for r in reversed(scored):
+        if r[2] != light:
+            break
+        streak += 1
+    spark = spark_points([r[1] for r in scored[-36:]])
+    buttons = "".join(f'<button type="button" data-r="{r}" aria-pressed="{str(r == "5Y").lower()}">{lab}</button>'
+                      for r, lab in NDC_RANGES)
+    legend = "".join(f'<span><i class="sw" style="background:{c}"></i>{n} {rg}</span>' for n, c, rg in NDC_LIGHTS)
+    return f"""<details>
+  <summary class="row">
+    <span class="name">景氣燈號<small>國發會 · {int(ym[:4])} 年 {int(ym[5:])} 月</small></span>
+    <span class="value">{score} 分</span>
+    <span class="chg"><span style="color:{color}">● {light}燈</span><small class="sub">{diff_txt}</small></span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="{spark}" stroke="{color}" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+  </summary>
+  <div class="ndc" data-streak="{streak}">
+  <div class="modes" role="group" aria-label="圖表類型"><button type="button" data-m="signal" aria-pressed="true">燈號</button><button type="button" data-m="lead" aria-pressed="false">領先指標</button></div>
+  <div class="ranges r6" role="group" aria-label="選擇期間">{buttons}</div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div>
+  <p class="legend" data-for="signal">{legend}</p>
+  <p class="legend" data-for="lead" hidden><span><i style="border-color:{NDC_LEAD};border-top-style:solid"></i>領先指標</span><span><i style="border-color:{NDC_COIN};border-top-style:solid"></i>同時指標</span><span>（不含趨勢；100＝長期趨勢）</span></p>
+  <p class="note">每月一筆，約每月 27 日公布上個月，所以比股市慢 1～2 個月。9 個構成項目裡有一項是股價指數。領先指標通常比燈號早幾個月轉彎。</p>
+  </div>
+</details>"""
+
+
+NDC_JS = r"""
+// 景氣燈號：每月一根長條（顏色＝燈號），另一個模式畫領先、同時指標
+function ndcRender(box) {
+  const data = box._data; if (!data) return;
+  const lead = box._mode === "lead", n = data.s.length, last = n - 1;
+  const [y0, m0] = data.start.split("-").map(Number);
+  const ym = i => { const t = y0 * 12 + m0 - 1 + i; return Math.floor(t / 12) + "-" + String(t % 12 + 1).padStart(2, "0"); };
+  const first = data.s.findIndex(v => v != null);
+  const months = {"1Y":12,"3Y":36,"5Y":60,"10Y":120,"20Y":240}[box._range];
+  const i0 = Math.max(lead ? 0 : first, months ? n - months : 0);
+  const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
+  const W = Math.max(plot.clientWidth, 280), H = 220, pl = 4, pr = 58, pt = 10, pb = 24;
+  const cnt = n - i0, slot = (W - pl - pr) / cnt;
+  const X = i => pl + (i - i0 + 0.5) * slot;
+  let lo, hi;
+  if (lead) {
+    lo = Infinity; hi = -Infinity;
+    for (let i = i0; i < n; i++) for (const v of [data.ld[i], data.co[i]]) if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    lo = Math.min(lo, 100); hi = Math.max(hi, 100); const pad = (hi - lo) * 0.05 || 1; lo -= pad; hi += pad;
+  } else { lo = 8; hi = 45; }   // 最低分是 9，底線放 8，9 分的月份才看得到長條
+  const Y = v => pt + (1 - (v - lo) / (hi - lo)) * (H - pt - pb);
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `景氣${lead ? "領先指標" : "燈號"}：${ym(i0)} 到 ${ym(last)}`});
+  if (lead) {
+    const ticks = niceTicks(lo, hi, 4);
+    for (const t of ticks) {
+      el("line", {x1: pl, x2: W - pr, y1: Y(t), y2: Y(t), stroke: t === 100 ? "#5a5d64" : "#262930", "stroke-dasharray": t === 100 ? "3 4" : ""}, svg);
+      el("text", {x: W - pr + 6, y: Y(t) + 4}, svg).textContent = t;
+    }
+    for (const [key, col] of [["co", NDC_COIN], ["ld", NDC_LEAD]]) {
+      const p = []; for (let i = i0; i < n; i++) if (data[key][i] != null) p.push(X(i).toFixed(1) + "," + Y(data[key][i]).toFixed(1));
+      el("polyline", {points: p.join(" "), fill: "none", stroke: col, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
+    }
+  } else {
+    for (const [v, t] of [[17, "17"], [23, "23"], [32, "32"], [38, "38"]]) {   // 燈號分界：黃藍、綠、黃紅、紅的起點
+      el("line", {x1: pl, x2: W - pr, y1: Y(v - 0.5), y2: Y(v - 0.5), stroke: "#262930"}, svg);
+      el("text", {x: W - pr + 6, y: Y(v - 0.5) + 4}, svg).textContent = t;
+    }
+    const bw = Math.max(slot * 0.78, 0.8);
+    for (let i = i0; i < n; i++) if (data.s[i] != null)
+      el("rect", {x: (X(i) - bw / 2).toFixed(2), y: Y(data.s[i]).toFixed(1), width: bw.toFixed(2), height: (Y(8) - Y(data.s[i])).toFixed(1), fill: NDC_COLORS[data.l[i]]}, svg);
+  }
+  el("text", {x: pl, y: H - 6}, svg).textContent = ym(i0);
+  el("text", {x: W - pr, y: H - 6, "text-anchor": "end"}, svg).textContent = ym(last);
+  const vline = el("line", {y1: pt, y2: H - pb, stroke: "#8f8d87", visibility: "hidden"}, svg);
+  plot.replaceChildren(svg);
+
+  const lastScored = data.s.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+  const dot = (k) => `<span style="color:${NDC_COLORS[k]}">●</span>`;
+  let summary;
+  if (lead) {
+    const li = data.ld.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+    const d6 = li >= 6 && data.ld[li - 6] != null ? data.ld[li] - data.ld[li - 6] : null;
+    summary = `<b>${ym(li)}</b>　領先 ${data.ld[li].toFixed(2)}　同時 ${data.co[li] != null ? data.co[li].toFixed(2) : "—"}` +
+      (d6 != null ? `　<span class="nw"><span style="color:#8f8d87">領先較半年前</span> ${d6 >= 0 ? "+" : "−"}${Math.abs(d6).toFixed(2)}</span>` : "");
+  } else {
+    const c = [0, 0, 0, 0, 0]; for (let i = i0; i < n; i++) if (data.l[i] != null) c[data.l[i]]++;
+    const order = [4, 3, 2, 1, 0];
+    summary = `<b>${ym(i0)} 起</b>　` + order.filter(k => c[k]).map(k => `<span class="nw">${dot(k)} ${NDC_NAMES[k]} ${c[k]}</span>`).join("　") +
+      `　<span style="color:#8f8d87">（個月）</span>　<span class="nw"><span style="color:#8f8d87">最新</span> ${NDC_NAMES[data.l[lastScored]]}燈連續 ${box.dataset.streak} 個月</span>`;
+  }
+  readout.innerHTML = summary;
+  const show = ev => {
+    const rect = svg.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) / rect.width * W;
+    const i = Math.max(i0, Math.min(last, Math.floor(i0 + (x - pl) / slot)));
+    vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
+    readout.innerHTML = lead
+      ? `<b>${ym(i)}</b>　領先 ${data.ld[i] != null ? data.ld[i].toFixed(2) : "—"}　同時 ${data.co[i] != null ? data.co[i].toFixed(2) : "—"}`
+      : data.s[i] != null ? `<b>${ym(i)}</b>　${dot(data.l[i])} ${NDC_NAMES[data.l[i]]}燈　${data.s[i]} 分` : `<b>${ym(i)}</b>　還沒公布`;
+  };
+  const hide = () => { vline.setAttribute("visibility", "hidden"); readout.innerHTML = summary; };
+  svg.addEventListener("pointermove", show);
+  svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", hide);
+  svg.addEventListener("pointercancel", hide);
+}
+document.querySelectorAll(".ndc").forEach(box => {
+  box._range = "5Y"; box._mode = "signal";
+  const det = box.closest("details");
+  det.addEventListener("toggle", () => {
+    if (!det.open) return;
+    if (box._data) return ndcRender(box);
+    loadSeries("ndc").then(d => { box._data = d; ndcRender(box); })
+      .catch(() => { box.querySelector(".readout").textContent = "景氣資料載入失敗。"; });
+  });
+  box.querySelectorAll(".ranges button").forEach(b => b.addEventListener("click", () => {
+    box._range = b.dataset.r;
+    box.querySelectorAll(".ranges button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    ndcRender(box);
+  }));
+  box.querySelectorAll(".modes button").forEach(b => b.addEventListener("click", () => {
+    box._mode = b.dataset.m;
+    box.querySelectorAll(".modes button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    box.querySelectorAll(".legend").forEach(l => { l.hidden = l.dataset.for !== box._mode; });
+    ndcRender(box);
+  }));
+});
+window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll("details[open] .ndc").forEach(ndcRender), 160));
+"""
+
+
 def chart_block(code, kind):
     buttons = "".join(
         f'<button type="button" data-r="{r}"{" aria-pressed=true" if r == "1Y" else " aria-pressed=false"}>{label}</button>'
@@ -263,8 +427,8 @@ function loadSeries(code) {
   });
   return loading[code];
 }
-function decode(raw) {            // 日期是「和前一筆差幾天」，還原成 1970 起的天數
-  if (!raw.days) { let t = 0; raw.days = raw.d.map(x => (t += x)); }
+function decode(raw) {            // 日期是「和前一筆差幾天」，還原成 1970 起的天數（景氣燈號是每月資料，沒有 d，不用還原）
+  if (!raw.days && raw.d) { let t = 0; raw.days = raw.d.map(x => (t += x)); }
   return raw;
 }
 const iso = day => new Date(day * DAY).toISOString().slice(0, 10);
@@ -534,6 +698,10 @@ def build():
             if PE_FOR.get(code) and load(PE_FOR[code]):   # 本益比也寫一份，點「本益比」時才載入
                 write_series(PE_FOR[code], load(PE_FOR[code]))
         groups_html.append(f'<section class="group"><h2>{group}</h2>{"".join(rows_html)}</section>')
+    ndc = load_ndc()
+    if ndc:   # 國發會景氣燈號（每月）
+        write_ndc_series(ndc)
+        groups_html.append(f'<section class="group"><h2>景氣（每月）</h2>{ndc_row(ndc)}</section>')
 
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
     ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
@@ -597,6 +765,10 @@ details[open] summary.row{{background:#1c1f24}}
 .nw{{white-space:nowrap}}
 .legend{{margin:6px 0 0;font-size:12px;color:#8f8d87;display:flex;gap:14px;flex-wrap:wrap}}
 .legend[hidden]{{display:none}}
+.legend i.sw{{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}}
+.chg .sub{{display:block;font-size:12px;color:#8f8d87}}
+.ndc{{margin:8px 6px 16px}}
+.note{{margin:8px 0 0;font-size:12px;line-height:1.6;color:#8f8d87}}
 .legend i{{display:inline-block;width:18px;border-top:2px dashed;vertical-align:middle;margin-right:5px}}
 .plot svg{{display:block;width:100%;height:220px;touch-action:pan-y;cursor:crosshair}}
 .plot text{{font-size:11px;fill:#8f8d87;font-variant-numeric:tabular-nums}}
@@ -610,6 +782,7 @@ details[open] summary.row{{background:#1c1f24}}
   .row{{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.9fr);min-height:56px}}
   .spark{{display:none}}
   .ranges{{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px}}
+  .ranges.r6{{grid-template-columns:repeat(6,minmax(0,1fr))}}
   .ranges button{{min-width:0;padding:0;font-size:12px;min-height:34px}}
   .hero .word{{font-size:64px}}
   .hero .icon{{width:64px;height:64px}}
@@ -653,7 +826,10 @@ details[open] summary.row{{background:#1c1f24}}
 const UP="{UP}", DN="{DN}", NEUTRAL="#c9c7c0";
 const MA_LINES = {ma_js};
 const PE_MEAN = "{PE_MEAN}", PE_BAND = "{PE_BAND}";
+const NDC_COLORS = {json.dumps([c for _, c, _ in NDC_LIGHTS])}, NDC_NAMES = {json.dumps([n for n, _, _ in NDC_LIGHTS], ensure_ascii=False)};
+const NDC_LEAD = "{NDC_LEAD}", NDC_COIN = "{NDC_COIN}";
 {chart_js}
+{NDC_JS}
 </script>
 </body>
 </html>

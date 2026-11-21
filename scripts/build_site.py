@@ -167,13 +167,18 @@ def chart_block(code, kind):
         f'<button type="button" data-r="{r}"{" aria-pressed=true" if r == "1Y" else " aria-pressed=false"}>{label}</button>'
         for r, label in RANGES)
     suf = ' data-suf="%"' if code == "us10y" else ""
+    legend = ""
+    if kind == "price":   # 均線圖例：季線、年線（顏色和 JS 的 MA_LINES 一致）
+        legend = "".join(f'<span><i style="border-color:{col}"></i>{label}</span>' for _, col, label in MA_LINES)
+        legend = f'<p class="legend">{legend}</p>'
     return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}"{suf}>
   <div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
-  <div class="plot"></div>
+  <div class="plot"></div>{legend}
 </div>"""
 
 
+MA_LINES = [(60, "#e0a95a", "季線 60 日"), (240, "#7fa7d9", "年線 240 日")]   # 移動平均線：天數、顏色、名稱（只是參考座標）
 RANGES = [("5D", "5天"), ("1M", "1月"), ("3M", "3月"), ("6M", "6月"), ("YTD", "今年"),
           ("1Y", "1年"), ("3Y", "3年"), ("5Y", "5年"), ("MAX", "最長")]
 
@@ -287,6 +292,11 @@ function sample(i0, n, c, maxPts) {
   return out;
 }
 
+function sma(c, n) {              // 簡單移動平均：前 n 天收盤的平均，不足 n 天是 null
+  const out = new Array(c.length).fill(null); let sum = 0;
+  for (let i = 0; i < c.length; i++) { sum += c[i]; if (i >= n) sum -= c[i - n]; if (i >= n - 1) out[i] = sum / n; }
+  return out;
+}
 function niceTicks(lo, hi, count) {
   const span = hi - lo || Math.abs(hi) || 1, raw = span / count;
   const mag = Math.pow(10, Math.floor(Math.log10(raw))), e = raw / mag;
@@ -322,8 +332,13 @@ function render(box) {
   const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
   const W = Math.max(plot.clientWidth, 280), H = 220, pl = 4, pr = 58, pt = 10, pb = 24;
   const pts = sample(i0, n, c, Math.min(800, W * 2));
+  // 移動平均線（只有價格類）：季線 60 日、年線 240 日，用完整歷史算，所以期間短也畫得出來
+  const mas = kind === "price" ? MA_LINES.map(m => ({...m, v: data["ma" + m.n] || (data["ma" + m.n] = sma(c, m.n))})) : [];
   let lo = Infinity, hi = -Infinity;
-  for (const i of pts) { if (c[i] < lo) lo = c[i]; if (c[i] > hi) hi = c[i]; }
+  for (const i of pts) {
+    if (c[i] < lo) lo = c[i]; if (c[i] > hi) hi = c[i];
+    for (const m of mas) { const v = m.v[i]; if (v != null) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+  }
   if (lo === hi) { lo -= 1; hi += 1; }
   const span = Math.max(last - i0, 1);
   const X = i => pl + (i - i0) / span * (W - pl - pr);
@@ -342,6 +357,11 @@ function render(box) {
       t.toLocaleString("en-US", {minimumFractionDigits: tdg, maximumFractionDigits: tdg}) + suf;
   }
   el("line", {x1: pl, x2: W - pr, y1: Y(c[i0]), y2: Y(c[i0]), stroke: "#5a5d64", "stroke-dasharray": "3 4"}, svg);
+  for (const m of mas) {
+    const p = pts.filter(i => m.v[i] != null).map(i => X(i).toFixed(1) + "," + Y(m.v[i]).toFixed(1));
+    if (p.length > 1) el("polyline", {points: p.join(" "), fill: "none", stroke: m.color, "stroke-width": 1.2,
+      "stroke-dasharray": "5 4", "stroke-linejoin": "round"}, svg);
+  }
   el("polyline", {points: pts.map(i => X(i).toFixed(1) + "," + Y(c[i]).toFixed(1)).join(" "),
     fill: "none", stroke: color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
   el("text", {x: pl, y: H - 6}, svg).textContent = iso(days[i0]);
@@ -360,7 +380,13 @@ function render(box) {
     vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
     dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(c[i])); dot.setAttribute("visibility", "visible");
     const ci = change(c[i0], c[i], kind, dg);
-    readout.innerHTML = `<b>${iso(days[i])}</b>　${fmt(c[i], dg, suf)}　<span style="color:#8f8d87">較起點</span> <span style="color:${ci.color}">${ci.text}</span>`;
+    let extra = "";
+    const y = mas.find(m => m.n === 240);
+    if (y && y.v[i] != null) {
+      const d = (c[i] / y.v[i] - 1) * 100;
+      extra = `　<span class="nw"><span style="color:#8f8d87">距年線</span> ${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(1)}%</span>`;
+    }
+    readout.innerHTML = `<b>${iso(days[i])}</b>　${fmt(c[i], dg, suf)}　<span style="color:#8f8d87">較起點</span> <span style="color:${ci.color}">${ci.text}</span>${extra}`;
   };
   const hide = () => { vline.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); readout.innerHTML = summary; };
   svg.addEventListener("pointermove", show);
@@ -461,6 +487,7 @@ def build():
         groups_html.append(f'<section class="group"><h2>{group}</h2>{"".join(rows_html)}</section>')
 
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
+    ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
     chart_js = CHART_JS.replace("__BUILD__", dt.datetime.now(TPE).strftime("%Y%m%d%H%M"))   # 讓瀏覽器拿到最新的資料檔
 
     page = f"""<!doctype html>
@@ -512,6 +539,9 @@ details[open] summary.row{{background:#1c1f24}}
 .ranges button[aria-pressed=true]{{background:#ecebe6;border-color:#ecebe6;color:#14161a;font-weight:600}}
 .readout{{margin:10px 0 4px;font-size:14px;min-height:1.6em;font-variant-numeric:tabular-nums;color:#c9c7c0}}
 .readout b{{font-weight:600}}
+.nw{{white-space:nowrap}}
+.legend{{margin:6px 0 0;font-size:12px;color:#8f8d87;display:flex;gap:14px;flex-wrap:wrap}}
+.legend i{{display:inline-block;width:18px;border-top:2px dashed;vertical-align:middle;margin-right:5px}}
 .plot svg{{display:block;width:100%;height:220px;touch-action:pan-y;cursor:crosshair}}
 .plot text{{font-size:11px;fill:#8f8d87;font-variant-numeric:tabular-nums}}
 .foot{{font-size:12px;color:#8f8d87;line-height:1.7}}
@@ -565,6 +595,7 @@ details[open] summary.row{{background:#1c1f24}}
 <noscript><p class="warn" style="text-align:center">走勢圖需要開啟 JavaScript。</p></noscript>
 <script>
 const UP="{UP}", DN="{DN}", NEUTRAL="#c9c7c0";
+const MA_LINES = {ma_js};
 {chart_js}
 </script>
 </body>

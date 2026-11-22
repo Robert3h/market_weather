@@ -58,7 +58,16 @@ details[open] summary.row{background:#1c1f24}
 .legend[hidden]{display:none}
 .legend i.sw{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}
 .chg .sub{display:block;font-size:12px;color:#8f8d87}
-.ndc{margin:8px 6px 16px}
+.ndc,.cmp{margin:8px 6px 16px}
+.row.one{grid-template-columns:1fr}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chips button{font:inherit;font-size:13px;min-height:34px;padding:0 12px;border-radius:17px;border:1px solid #3a3d44;background:transparent;color:#a7a59e;cursor:pointer}
+.chips button::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--c,transparent);box-shadow:inset 0 0 0 1px #5a5d64;vertical-align:1px}
+.chips button:hover{border-color:#8f8d87;color:#ecebe6}
+.chips button:focus-visible{outline:2px solid #d97757;outline-offset:1px}
+.chips button[aria-pressed=true]{color:#ecebe6;border-color:#8f8d87;background:#1c1f24}
+.chips button[aria-pressed=true]::before{box-shadow:none}
+.chips button:disabled{opacity:.4;cursor:not-allowed}
 .note{margin:8px 0 0;font-size:12px;line-height:1.6;color:#8f8d87}
 .legend i{display:inline-block;width:18px;border-top:2px dashed;vertical-align:middle;margin-right:5px}
 .plot svg{display:block;width:100%;height:220px;touch-action:pan-y;cursor:crosshair}
@@ -82,7 +91,7 @@ details[open] summary.row{background:#1c1f24}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><b>market_weather</b><span>更新於 2026-11-21 21:45</span></div>
+  <div class="top"><b>market_weather</b><span>更新於 2026-11-22 19:34</span></div>
   
   <div class="cols">
     <aside>
@@ -100,7 +109,17 @@ details[open] summary.row{background:#1c1f24}
       </section>
     </aside>
     <main>
-      <section class="group"><h2>台股</h2><details>
+      <section class="group"><h2>比較</h2><details>
+  <summary class="row one"><span class="name">把指標放在一起看<small>勾選最多 5 個 · 上下排或疊在一起</small></span></summary>
+  <div class="cmp">
+  <div class="chips" role="group" aria-label="勾選要比較的指標"><button type="button" data-c="taiex" aria-pressed="false">加權指數</button><button type="button" data-c="2330" aria-pressed="false">台積電</button><button type="button" data-c="spx" aria-pressed="false">標普 500</button><button type="button" data-c="qqq" aria-pressed="false">那斯達克 100</button><button type="button" data-c="smh" aria-pressed="false">費城半導體</button><button type="button" data-c="tsm" aria-pressed="false">台積電 ADR</button><button type="button" data-c="vix" aria-pressed="false">VIX 恐慌指數</button><button type="button" data-c="us10y" aria-pressed="false">美債 10 年殖利率</button><button type="button" data-c="usdtwd" aria-pressed="false">美元兌台幣</button></div>
+  <div class="modes" role="group" aria-label="排法"><button type="button" data-m="stack" aria-pressed="true">上下排</button><button type="button" data-m="overlay" aria-pressed="false">疊在一起</button></div>
+  <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed="false">5天</button><button type="button" data-r="1M" aria-pressed="false">1月</button><button type="button" data-r="3M" aria-pressed="false">3月</button><button type="button" data-r="6M" aria-pressed="false">6月</button><button type="button" data-r="YTD" aria-pressed="false">今年</button><button type="button" data-r="1Y" aria-pressed="true">1年</button><button type="button" data-r="3Y" aria-pressed="false">3年</button><button type="button" data-r="5Y" aria-pressed="false">5年</button><button type="button" data-r="MAX" aria-pressed="false">最長</button></div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div>
+  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。</p>
+  </div>
+</details></section><section class="group"><h2>台股</h2><details>
   <summary class="row">
     <span class="name">加權指數<small>TAIEX</small></span>
     <span class="value">36,033.29</span>
@@ -244,6 +263,7 @@ const MA_LINES = [{"n": 60, "color": "#e0a95a"}, {"n": 240, "color": "#7fa7d9"}]
 const PE_MEAN = "#ecebe6", PE_BAND = "#8f8d87";
 const NDC_COLORS = ["#3d6fd1", "#8fb8e8", "#3fb27f", "#f0a03c", "#e5484d"], NDC_NAMES = ["藍", "黃藍", "綠", "黃紅", "紅"];
 const NDC_LEAD = "#ecebe6", NDC_COIN = "#7fa7d9";
+const CMP_META = {"taiex": {"name": "加權指數", "kind": "price", "dg": 2, "suf": ""}, "2330": {"name": "台積電", "kind": "price", "dg": 1, "suf": ""}, "spx": {"name": "標普 500", "kind": "price", "dg": 2, "suf": ""}, "qqq": {"name": "那斯達克 100", "kind": "price", "dg": 2, "suf": ""}, "smh": {"name": "費城半導體", "kind": "price", "dg": 2, "suf": ""}, "tsm": {"name": "台積電 ADR", "kind": "price", "dg": 2, "suf": ""}, "vix": {"name": "VIX 恐慌指數", "kind": "point", "dg": 2, "suf": ""}, "us10y": {"name": "美債 10 年殖利率", "kind": "point", "dg": 3, "suf": "%"}, "usdtwd": {"name": "美元兌台幣", "kind": "point", "dg": 3, "suf": ""}}, CMP_COLORS = ["#ecebe6", "#7fa7d9", "#e0a95a", "#5fc4b8", "#d58fb5"], CMP_DEFAULT = ["taiex", "2330", "spx"];
 
 window.MW_SERIES = window.MW_SERIES || {};
 const DAY = 86400000, SVGNS = "http://www.w3.org/2000/svg";
@@ -255,7 +275,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611212145";
+    s.src = "series/" + code + ".js?v=202611221934";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);
@@ -559,6 +579,139 @@ document.querySelectorAll(".ndc").forEach(box => {
   }));
 });
 window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll("details[open] .ndc").forEach(ndcRender), 160));
+
+
+// 比較：勾選幾個指標放在一起看
+const CMP_MAX = 5;
+function lastLE(days, t) { let lo = 0, hi = days.length - 1, ans = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (days[m] <= t) { ans = m; lo = m + 1; } else hi = m - 1; } return ans; }
+function cmpRender(box) {
+  const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
+  const ser = box._sel.filter(c => box._d[c]).map(code => ({code, m: CMP_META[code], d: box._d[code], color: CMP_COLORS[box._sel.indexOf(code)]}));
+  if (!ser.length) { plot.replaceChildren(); readout.textContent = "勾選上面的指標（最多 5 個）。"; return; }
+  const stack = box._mode !== "overlay", r = box._range;
+  const lastDay = s => s.d.days[s.d.days.length - 1];
+  const ref = ser.reduce((a, b) => lastDay(b) > lastDay(a) ? b : a);   // 用最晚收盤的那個指標對齊日期
+  const T0 = r === "MAX" ? Math.max(...ser.map(s => s.d.days[0])) : ref.d.days[startIndex(ref.d.days, r)];   // 最長＝大家都有資料的那天起
+  const T1 = lastDay(ref);
+  for (const s of ser) {
+    s.i0 = Math.max(0, lastLE(s.d.days, T0)); s.last = s.d.days.length - 1; s.base = s.d.c[s.i0];
+    s.pct = i => (s.d.c[i] / s.base - 1) * 100;
+  }
+  const W = Math.max(plot.clientWidth, 280), pl = 4, pr = 58, pt = 8, pb = 22, GAP = 18;
+  const PH = stack ? (ser.length > 3 ? 84 : 104) : 250;
+  const H = pt + (stack ? ser.length * PH + (ser.length - 1) * GAP : PH) + pb;
+  const X = day => pl + (day - T0) / Math.max(T1 - T0, 1) * (W - pl - pr);
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "比較：" + ser.map(s => s.m.name).join("、")});
+  svg.style.height = H + "px";
+  const tickText = (t, step, suf) => { const d = Math.max(0, Math.min(3, -Math.floor(Math.log10(step) + 1e-9))); return t.toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}) + suf; };
+  const line = (s, Y) => {
+    const pts = sample(s.i0, s.last + 1, s.d.c, Math.min(800, W * 2));
+    el("polyline", {points: pts.map(i => X(s.d.days[i]).toFixed(1) + "," + Y(i).toFixed(1)).join(" "), fill: "none", stroke: s.color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
+  };
+  const labels = [];
+  if (stack) {
+    ser.forEach((s, k) => {
+      const top = pt + k * (PH + GAP);
+      let lo = Infinity, hi = -Infinity;
+      for (let i = s.i0; i <= s.last; i++) { const v = s.d.c[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      if (lo === hi) { lo -= 1; hi += 1; }
+      const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+      const Yv = v => top + (1 - (v - lo) / (hi - lo)) * PH;
+      const ticks = niceTicks(lo, hi, 3), step = ticks.length > 1 ? ticks[1] - ticks[0] : 1;
+      for (const t of ticks) {
+        el("line", {x1: pl, x2: W - pr, y1: Yv(t), y2: Yv(t), stroke: "#262930"}, svg);
+        el("text", {x: W - pr + 6, y: Yv(t) + 4}, svg).textContent = tickText(t, step, s.m.suf);
+      }
+      el("line", {x1: pl, x2: W - pr, y1: Yv(s.base), y2: Yv(s.base), stroke: "#5a5d64", "stroke-dasharray": "3 4"}, svg);
+      s.Y = i => Yv(s.d.c[i]);
+      line(s, s.Y);
+      const ch = change(s.base, s.d.c[s.last], s.m.kind, s.m.dg);
+      labels.push([top + 13, s, ch]);
+    });
+  } else {
+    let lo = 0, hi = 0;
+    for (const s of ser) for (let i = s.i0; i <= s.last; i++) { const v = s.pct(i); if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (lo === hi) { lo -= 1; hi += 1; }
+    const Yp = v => pt + (1 - (v - lo) / (hi - lo)) * PH;
+    const ticks = niceTicks(lo, hi, 4), step = ticks.length > 1 ? ticks[1] - ticks[0] : 1;
+    for (const t of ticks) {
+      el("line", {x1: pl, x2: W - pr, y1: Yp(t), y2: Yp(t), stroke: t === 0 ? "#5a5d64" : "#262930", "stroke-dasharray": t === 0 ? "3 4" : ""}, svg);
+      el("text", {x: W - pr + 6, y: Yp(t) + 4}, svg).textContent = (t > 0 ? "+" : "") + tickText(t, step, "%");
+    }
+    for (const s of ser) { s.Y = i => Yp(s.pct(i)); line(s, s.Y); }
+  }
+  for (const [y, s, ch] of labels) {   // 每張小圖左上角：名稱＋期間漲跌（最後畫，才不會被線蓋住）
+    const t = el("text", {x: pl + 2, y, style: "paint-order:stroke;stroke:#14161a;stroke-width:4px;stroke-linejoin:round;font-size:12px"}, svg);
+    const a = el("tspan", {style: `fill:${s.color}`}, t); a.textContent = s.m.name + "  ";
+    const b = el("tspan", {style: `fill:${ch.color}`}, t); b.textContent = ch.text;
+  }
+  el("text", {x: pl, y: H - 6}, svg).textContent = iso(T0);
+  el("text", {x: W - pr, y: H - 6, "text-anchor": "end"}, svg).textContent = iso(T1);
+  const vline = el("line", {y1: pt, y2: H - pb, stroke: "#8f8d87", visibility: "hidden"}, svg);
+  const dots = ser.map(s => el("circle", {r: 3.5, fill: s.color, stroke: "#14161a", "stroke-width": 2, visibility: "hidden"}, svg));
+  plot.replaceChildren(svg);
+
+  const dot = s => `<span style="color:${s.color}">●</span>`;
+  const pctText = v => `${v > 0 ? "▲" : v < 0 ? "▼" : "－"} ${Math.abs(v).toFixed(2)}%`;
+  const summary = `<b>${RANGE_LABEL[r]}</b>　` + ser.map(s => {
+    const v = s.pct(s.last);
+    return `<span class="nw">${dot(s)} ${s.m.name} <span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span></span>`;
+  }).join("　") + `　<span class="nw" style="color:#8f8d87">${iso(T0)} 起</span>`;
+  readout.innerHTML = summary;
+  const show = ev => {
+    const rect = svg.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) / rect.width * W;
+    const want = T0 + (x - pl) / (W - pl - pr) * (T1 - T0);
+    const day = ref.d.days[Math.max(ref.i0, lastLE(ref.d.days, want))];
+    vline.setAttribute("x1", X(day)); vline.setAttribute("x2", X(day)); vline.setAttribute("visibility", "visible");
+    readout.innerHTML = `<b>${iso(day)}</b>　` + ser.map((s, k) => {
+      const i = Math.max(s.i0, lastLE(s.d.days, day));
+      dots[k].setAttribute("cx", X(s.d.days[i])); dots[k].setAttribute("cy", s.Y(i)); dots[k].setAttribute("visibility", "visible");
+      const v = s.pct(i);
+      return `<span class="nw">${dot(s)} ${s.m.name} ${fmt(s.d.c[i], s.m.dg, s.m.suf)} <span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span></span>`;
+    }).join("　");
+  };
+  const hide = () => { vline.setAttribute("visibility", "hidden"); dots.forEach(d => d.setAttribute("visibility", "hidden")); readout.innerHTML = summary; };
+  svg.addEventListener("pointermove", show);
+  svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", hide);
+  svg.addEventListener("pointercancel", hide);
+}
+document.querySelectorAll(".cmp").forEach(box => {
+  box._d = {}; box._range = "1Y"; box._mode = "stack";
+  try { box._sel = JSON.parse(localStorage.getItem("mw_compare")); } catch (e) {}   // 記住上次勾了哪些（只存在這台裝置的瀏覽器）
+  if (!Array.isArray(box._sel)) box._sel = CMP_DEFAULT.slice();
+  box._sel = box._sel.filter(c => CMP_META[c]).slice(0, CMP_MAX);
+  const chips = box.querySelectorAll(".chips button"), readout = box.querySelector(".readout");
+  const sync = () => chips.forEach(b => {
+    const k = box._sel.indexOf(b.dataset.c);
+    b.setAttribute("aria-pressed", k >= 0);
+    b.style.setProperty("--c", k >= 0 ? CMP_COLORS[k] : "transparent");
+    b.disabled = k < 0 && box._sel.length >= CMP_MAX;
+  });
+  const load = () => Promise.all(box._sel.map(c => box._d[c] || loadSeries(c).then(d => { box._d[c] = d; })))
+    .then(() => cmpRender(box)).catch(() => { readout.textContent = "走勢資料載入失敗。"; });
+  sync();
+  const det = box.closest("details");
+  det.addEventListener("toggle", () => { if (det.open) load(); });
+  chips.forEach(b => b.addEventListener("click", () => {
+    const c = b.dataset.c, k = box._sel.indexOf(c);
+    if (k >= 0) box._sel.splice(k, 1); else if (box._sel.length < CMP_MAX) box._sel.push(c);
+    try { localStorage.setItem("mw_compare", JSON.stringify(box._sel)); } catch (e) {}
+    sync(); load();
+  }));
+  box.querySelectorAll(".ranges button").forEach(b => b.addEventListener("click", () => {
+    box._range = b.dataset.r;
+    box.querySelectorAll(".ranges button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    cmpRender(box);
+  }));
+  box.querySelectorAll(".modes button").forEach(b => b.addEventListener("click", () => {
+    box._mode = b.dataset.m;
+    box.querySelectorAll(".modes button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    cmpRender(box);
+  }));
+});
+window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll("details[open] .cmp").forEach(cmpRender), 170));
 
 </script>
 </body>

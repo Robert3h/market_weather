@@ -337,17 +337,20 @@ def compare_block():
     buttons = "".join(
         f'<button type="button" data-r="{r}" aria-pressed="{str(r == "1Y").lower()}">{label}</button>'
         for r, label in RANGES)
-    return f"""<details>
-  <summary class="row one"><span class="name">把指標放在一起看<small>勾選最多 5 個 · 上下排或疊在一起</small></span></summary>
-  <div class="cmp">
+    # 勾選按鈕直接露在外面（2026-11-22 改：原本收在「把指標放在一起看」裡面，太不明顯）。
+    # 按任一個勾選按鈕或「看比較圖」才展開圖，一進網頁不會多一大張圖。
+    return f"""<div class="cmp">
+  <p class="hint">勾選最多 5 個指標，放在一起看走勢</p>
   <div class="chips" role="group" aria-label="勾選要比較的指標">{chips}</div>
+  <button type="button" class="open" aria-expanded="false" aria-controls="cmp-body">看比較圖<span aria-hidden="true">▾</span></button>
+  <div class="body" id="cmp-body" hidden>
   <div class="modes" role="group" aria-label="排法"><button type="button" data-m="stack" aria-pressed="true">上下排</button><button type="button" data-m="overlay" aria-pressed="false">疊在一起</button></div>
   <div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
   <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。</p>
   </div>
-</details>"""
+</div>"""
 
 
 CMP_JS = r"""
@@ -462,13 +465,21 @@ document.querySelectorAll(".cmp").forEach(box => {
   const load = () => Promise.all(box._sel.map(c => box._d[c] || loadSeries(c).then(d => { box._d[c] = d; })))
     .then(() => cmpRender(box)).catch(() => { readout.textContent = "走勢資料載入失敗。"; });
   sync();
-  const det = box.closest("details");
-  det.addEventListener("toggle", () => { if (det.open) load(); });
+  const body = box.querySelector(".body"), open = box.querySelector(".open");
+  const setOpen = on => {   // 展開／收起比較圖
+    body.hidden = !on;
+    open.setAttribute("aria-expanded", on);
+    open.firstChild.textContent = on ? "收起比較圖" : "看比較圖";
+    open.lastChild.textContent = on ? "▴" : "▾";
+    if (on) load();
+  };
+  open.addEventListener("click", () => setOpen(body.hidden));
   chips.forEach(b => b.addEventListener("click", () => {
     const c = b.dataset.c, k = box._sel.indexOf(c);
     if (k >= 0) box._sel.splice(k, 1); else if (box._sel.length < CMP_MAX) box._sel.push(c);
     try { localStorage.setItem("mw_compare", JSON.stringify(box._sel)); } catch (e) {}
-    sync(); load();
+    sync();
+    if (body.hidden) setOpen(true); else load();   // 按勾選按鈕就自動展開圖
   }));
   box.querySelectorAll(".ranges button").forEach(b => b.addEventListener("click", () => {
     box._range = b.dataset.r;
@@ -481,7 +492,7 @@ document.querySelectorAll(".cmp").forEach(box => {
     cmpRender(box);
   }));
 });
-window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll("details[open] .cmp").forEach(cmpRender), 170));
+window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll(".cmp").forEach(box => { if (!box.querySelector(".body").hidden) cmpRender(box); }), 170));
 """
 
 
@@ -929,7 +940,15 @@ details[open] summary.row{{background:#1c1f24}}
 .legend[hidden]{{display:none}}
 .legend i.sw{{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}}
 .chg .sub{{display:block;font-size:12px;color:#8f8d87}}
-.ndc,.cmp{{margin:8px 6px 16px}}
+.ndc{{margin:8px 6px 16px}}
+.cmp{{border-top:1px solid #262930;padding:10px 6px 8px}}
+.cmp .hint{{margin:0 0 8px;font-size:13px;color:#a7a59e}}
+.cmp .open{{font:inherit;font-size:14px;min-height:40px;padding:0 16px;border-radius:8px;border:1px solid #d97757;background:transparent;color:#ecebe6;cursor:pointer}}
+.cmp .open span{{margin-left:6px;color:#d97757}}
+.cmp .open:hover{{background:#1c1f24}}
+.cmp .open:focus-visible{{outline:2px solid #d97757;outline-offset:1px}}
+.cmp .open[aria-expanded=true]{{border-color:#3a3d44;color:#a7a59e;margin-bottom:10px}}
+.cmp .body[hidden]{{display:none}}
 .row.one{{grid-template-columns:1fr}}
 .chips{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}}
 .chips button{{font:inherit;font-size:13px;min-height:34px;padding:0 12px;border-radius:17px;border:1px solid #3a3d44;background:transparent;color:#a7a59e;cursor:pointer}}

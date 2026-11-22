@@ -47,6 +47,8 @@ INDICATORS = {
     "vix":    ("VIX 恐慌指數", "yahoo", "^VIX"),
     "us10y":  ("美國 10 年期公債殖利率", "yahoo", "^TNX"),
     "usdtwd": ("美元兌台幣", "yahoo", "TWD=X"),
+    "gold":   ("黃金（紐約期貨，美元／盎司）", "yahoo", "GC=F"),   # 2026-11-22 加：只看走勢，和其他資產比較
+    "btc":    ("比特幣（美元）", "yahoo", "BTC-USD"),           # 週末也有交易
 }
 
 # 本益比（證交所 BWIBBU，每日、2005-09 起）：代號 → (顯示名稱, 股票代號)。存 data/<代號>.csv，欄位 date,close,source（close＝本益比）

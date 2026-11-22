@@ -24,7 +24,7 @@ SPARK_DAYS = 63      # 小走勢圖：約 3 個月的交易日
 CALENDAR_DAYS = 30   # 天氣日曆格數
 HISTORY_DAYS = 400   # 晴雨只算最近這麼多個台股交易日（日曆、連續天數夠用）
 TPE = dt.timezone(dt.timedelta(hours=8))   # 一律用台灣時間（GitHub Actions 的機器是 UTC）
-DIGITS = {"taiex": 2, "spx": 2, "2330": 1, "vix": 2, "us10y": 3, "usdtwd": 3, "2330_pe": 2}   # 走勢圖數字的小數位
+DIGITS = {"taiex": 2, "spx": 2, "2330": 1, "vix": 2, "us10y": 3, "usdtwd": 3, "2330_pe": 2, "gold": 1, "btc": 0}   # 走勢圖數字的小數位
 
 UP, DN, FLAT = "#ef6a5f", "#3fb27f", "#a7a59e"   # 紅漲綠跌（台股習慣），風向組用灰色
 WEATHER = {
@@ -44,8 +44,10 @@ ROWS = [
     ("vix", "VIX 恐慌指數", "20 以下算平靜", "風向", "point"),
     ("us10y", "美債 10 年殖利率", "US10Y", "風向", "point"),
     ("usdtwd", "美元兌台幣", "USD/TWD", "風向", "point"),
+    ("gold", "黃金", "紐約期貨 · 美元／盎司", "其他資產", "price"),   # 2026-11-22 加：只看走勢，和其他資產比較
+    ("btc", "比特幣", "BTC · 美元 · 週末也交易", "其他資產", "price"),
 ]
-SOURCES_TEXT = "證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率）、國發會（景氣燈號，政府資料開放平台）"
+SOURCES_TEXT = "證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）"
 
 # 國發會景氣對策信號：燈號 → (顏色, 分數範圍)。顏色從冷到熱，和國發會圖一樣藍→綠→紅
 NDC_LIGHTS = [("藍", "#3d6fd1", "9–16"), ("黃藍", "#8fb8e8", "17–22"), ("綠", "#3fb27f", "23–31"),
@@ -120,6 +122,10 @@ def fmt_value(code, v):
         return f"{v:.2f}"
     if code == "usdtwd":
         return f"{v:.3f}"
+    if code == "gold":
+        return f"{v:,.1f}"
+    if code == "btc":
+        return f"{v:,.0f}"
     return f"{v:,.2f}"
 
 
@@ -330,10 +336,12 @@ CMP_DEFAULT = ["taiex", "2330", "spx"]   # 「比較」第一次打開時預設�
 CMP_COLORS = ["#ecebe6", "#7fa7d9", "#e0a95a", "#5fc4b8", "#d58fb5"]   # 依勾選順序配色（避開紅綠，紅綠留給漲跌）
 
 
-def compare_block():
-    """「比較」：勾選最多 5 個指標放在一起看。上下排＝各自刻度、同一條時間軸；疊在一起＝同一起點的漲跌 %。"""
+def compare_block(has_ndc):
+    """「比較」：勾選最多 5 個指標放在一起看。上下排＝各自刻度、同一條時間軸；疊在一起＝同一起點的漲跌 %。
+    has_ndc：有國發會景氣燈號資料時，多一個「景氣燈號」可以勾（每月資料，畫成階梯線）。"""
+    items = [(code, name) for code, name, *_ in ROWS] + ([("ndc", "景氣燈號（每月）")] if has_ndc else [])
     chips = "".join(f'<button type="button" data-c="{code}" aria-pressed="false">{name}</button>'
-                    for code, name, *_ in ROWS)
+                    for code, name in items)
     buttons = "".join(
         f'<button type="button" data-r="{r}" aria-pressed="{str(r == "1Y").lower()}">{label}</button>'
         for r, label in RANGES)
@@ -348,7 +356,7 @@ def compare_block():
   <div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
-  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。</p>
+  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。{"景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減，疊在一起時和其他指標一樣算變化 %，只供參考。" if has_ndc else ""}</p>
   </div>
 </div>"""
 
@@ -357,6 +365,12 @@ CMP_JS = r"""
 // 比較：勾選幾個指標放在一起看
 const CMP_MAX = 5;
 function lastLE(days, t) { let lo = 0, hi = days.length - 1, ans = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (days[m] <= t) { ans = m; lo = m + 1; } else hi = m - 1; } return ans; }
+function ndcMonthly(raw) {   // 景氣燈號（每月）→ 比較用的格式：每個月放在該月 1 日，end＝最後一個月的下個月 1 日
+  const [y, m] = raw.start.split("-").map(Number), days = [], c = [], l = [];
+  raw.s.forEach((v, i) => { if (v != null) { days.push(Date.UTC(y, m - 1 + i, 1) / DAY); c.push(v); l.push(raw.l[i]); } });
+  const e = new Date(days[days.length - 1] * DAY);
+  return {days, c, l, monthly: true, end: Date.UTC(e.getUTCFullYear(), e.getUTCMonth() + 1, 1) / DAY};
+}
 function cmpRender(box) {
   const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
   const ser = box._sel.filter(c => box._d[c]).map(code => ({code, m: CMP_META[code], d: box._d[code], color: CMP_COLORS[box._sel.indexOf(code)]}));
@@ -377,9 +391,17 @@ function cmpRender(box) {
   const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "比較：" + ser.map(s => s.m.name).join("、")});
   svg.style.height = H + "px";
   const tickText = (t, step, suf) => { const d = Math.max(0, Math.min(3, -Math.floor(Math.log10(step) + 1e-9))); return t.toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}) + suf; };
+  const Xc = day => Math.max(pl, X(day));   // 期間起點前的那一筆（例如上個月的燈號）畫在最左邊
   const line = (s, Y) => {
-    const pts = sample(s.i0, s.last + 1, s.d.c, Math.min(800, W * 2));
-    el("polyline", {points: pts.map(i => X(s.d.days[i]).toFixed(1) + "," + Y(i).toFixed(1)).join(" "), fill: "none", stroke: s.color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
+    let pts;
+    if (s.d.monthly) {   // 每月資料畫成階梯：一整個月同一個高度
+      pts = [];
+      for (let i = s.i0; i <= s.last; i++) {
+        const y = Y(i).toFixed(1), x1 = Math.min(X(i < s.last ? s.d.days[i + 1] : s.d.end), W - pr);
+        pts.push(Xc(s.d.days[i]).toFixed(1) + "," + y, x1.toFixed(1) + "," + y);
+      }
+    } else pts = sample(s.i0, s.last + 1, s.d.c, Math.min(800, W * 2)).map(i => Xc(s.d.days[i]).toFixed(1) + "," + Y(i).toFixed(1));
+    el("polyline", {points: pts.join(" "), fill: "none", stroke: s.color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
   };
   const labels = [];
   if (stack) {
@@ -399,6 +421,7 @@ function cmpRender(box) {
       s.Y = i => Yv(s.d.c[i]);
       line(s, s.Y);
       const ch = change(s.base, s.d.c[s.last], s.m.kind, s.m.dg);
+      if (s.m.kind === "score") ch.text += " 分";
       labels.push([top + 13, s, ch]);
     });
   } else {
@@ -426,10 +449,13 @@ function cmpRender(box) {
 
   const dot = s => `<span style="color:${s.color}">●</span>`;
   const pctText = v => `${v > 0 ? "▲" : v < 0 ? "▼" : "－"} ${Math.abs(v).toFixed(2)}%`;
-  const summary = `<b>${RANGE_LABEL[r]}</b>　` + ser.map(s => {
-    const v = s.pct(s.last);
-    return `<span class="nw">${dot(s)} ${s.m.name} <span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span></span>`;
-  }).join("　") + `　<span class="nw" style="color:#8f8d87">${iso(T0)} 起</span>`;
+  const chgHtml = (s, i) => {   // 漲跌：一般是 %；景氣燈號在上下排時看分數增減
+    if (stack && s.m.kind === "score") { const d = s.d.c[i] - s.base; return `<span style="color:${NEUTRAL}">${d > 0 ? "▲" : d < 0 ? "▼" : "－"} ${Math.abs(d)} 分</span>`; }
+    const v = s.pct(i);
+    return `<span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span>`;
+  };
+  const summary = `<b>${RANGE_LABEL[r]}</b>　` + ser.map(s => `<span class="nw">${dot(s)} ${s.m.name} ${chgHtml(s, s.last)}</span>`).join("　") +
+    `　<span class="nw" style="color:#8f8d87">${iso(T0)} 起</span>`;
   readout.innerHTML = summary;
   const show = ev => {
     const rect = svg.getBoundingClientRect();
@@ -439,9 +465,10 @@ function cmpRender(box) {
     vline.setAttribute("x1", X(day)); vline.setAttribute("x2", X(day)); vline.setAttribute("visibility", "visible");
     readout.innerHTML = `<b>${iso(day)}</b>　` + ser.map((s, k) => {
       const i = Math.max(s.i0, lastLE(s.d.days, day));
-      dots[k].setAttribute("cx", X(s.d.days[i])); dots[k].setAttribute("cy", s.Y(i)); dots[k].setAttribute("visibility", "visible");
-      const v = s.pct(i);
-      return `<span class="nw">${dot(s)} ${s.m.name} ${fmt(s.d.c[i], s.m.dg, s.m.suf)} <span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span></span>`;
+      dots[k].setAttribute("cx", s.d.monthly ? X(day) : Xc(s.d.days[i])); dots[k].setAttribute("cy", s.Y(i)); dots[k].setAttribute("visibility", "visible");
+      const extra = s.d.monthly ? ` ${iso(s.d.days[i]).slice(0, 7)}` : "";   // 每月資料標出是哪個月的
+      const light = s.d.l ? ` ${NDC_NAMES[s.d.l[i]]}燈` : "";
+      return `<span class="nw">${dot(s)} ${s.m.name}${extra} ${fmt(s.d.c[i], s.m.dg, s.m.suf)}${light} ${chgHtml(s, i)}</span>`;
     }).join("　");
   };
   const hide = () => { vline.setAttribute("visibility", "hidden"); dots.forEach(d => d.setAttribute("visibility", "hidden")); readout.innerHTML = summary; };
@@ -462,7 +489,7 @@ document.querySelectorAll(".cmp").forEach(box => {
     b.style.setProperty("--c", k >= 0 ? CMP_COLORS[k] : "transparent");
     b.disabled = k < 0 && box._sel.length >= CMP_MAX;
   });
-  const load = () => Promise.all(box._sel.map(c => box._d[c] || loadSeries(c).then(d => { box._d[c] = d; })))
+  const load = () => Promise.all(box._sel.map(c => box._d[c] || loadSeries(c).then(d => { box._d[c] = c === "ndc" ? ndcMonthly(d) : d; })))
     .then(() => cmpRender(box)).catch(() => { readout.textContent = "走勢資料載入失敗。"; });
   sync();
   const body = box.querySelector(".body"), open = box.querySelector(".open");
@@ -545,7 +572,7 @@ def notable(series_map):
     notes, big_up, big_dn = [], [], []
     for code, name, _, group, kind in ROWS:
         s = series_map[code]
-        if len(s) < 61 or kind != "price":
+        if len(s) < 61 or kind != "price" or group == "其他資產":   # 黃金、比特幣只看走勢，不列進「值得注意」（比特幣常常一天動 2% 以上）
             continue
         c = pct(s, len(s) - 1)
         if abs(c) < 2:
@@ -840,8 +867,8 @@ def build():
 
     # 指標列表
     groups_html = []
-    newest = {"台股": tw_last, "美股": us_last, "風向": us_last}
-    for group in ("台股", "美股", "風向"):
+    newest = {"台股": tw_last, "美股": us_last, "風向": us_last, "其他資產": us_last}
+    for group in ("台股", "美股", "風向", "其他資產"):
         rows_html = []
         for code, name, sub, g, kind in ROWS:
             if g != group:
@@ -868,16 +895,19 @@ def build():
             if PE_FOR.get(code) and load(PE_FOR[code]):   # 本益比也寫一份，點「本益比」時才載入
                 write_series(PE_FOR[code], load(PE_FOR[code]))
         groups_html.append(f'<section class="group"><h2>{group}</h2>{"".join(rows_html)}</section>')
-    groups_html.insert(0, f'<section class="group"><h2>比較</h2>{compare_block()}</section>')
     ndc = load_ndc()
+    groups_html.insert(0, f'<section class="group"><h2>比較</h2>{compare_block(bool(ndc))}</section>')
     if ndc:   # 國發會景氣燈號（每月）
         write_ndc_series(ndc)
         groups_html.append(f'<section class="group"><h2>景氣（每月）</h2>{ndc_row(ndc)}</section>')
 
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
     ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
-    cmp_meta = json.dumps({code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code == "us10y" else ""}
-                           for code, name, _, _, kind in ROWS if series_map[code]}, ensure_ascii=False)
+    cmp_meta = {code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code == "us10y" else ""}
+                for code, name, _, _, kind in ROWS if series_map[code]}
+    if ndc:
+        cmp_meta["ndc"] = {"name": "景氣燈號", "kind": "score", "dg": 0, "suf": " 分"}
+    cmp_meta = json.dumps(cmp_meta, ensure_ascii=False)
     chart_js = CHART_JS.replace("__BUILD__", dt.datetime.now(TPE).strftime("%Y%m%d%H%M"))   # 讓瀏覽器拿到最新的資料檔
 
     page = f"""<!doctype html>

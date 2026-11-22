@@ -102,7 +102,7 @@ details[open] summary.row{background:#1c1f24}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><b>market_weather</b><span>更新於 2026-11-22 21:48</span></div>
+  <div class="top"><b>market_weather</b><span>更新於 2026-11-22 22:37</span></div>
   
   <div class="cols">
     <aside>
@@ -122,14 +122,14 @@ details[open] summary.row{background:#1c1f24}
     <main>
       <section class="group"><h2>比較</h2><div class="cmp">
   <p class="hint">勾選最多 5 個指標，放在一起看走勢</p>
-  <div class="chips" role="group" aria-label="勾選要比較的指標"><button type="button" data-c="taiex" aria-pressed="false">加權指數</button><button type="button" data-c="2330" aria-pressed="false">台積電</button><button type="button" data-c="spx" aria-pressed="false">標普 500</button><button type="button" data-c="qqq" aria-pressed="false">那斯達克 100</button><button type="button" data-c="smh" aria-pressed="false">費城半導體</button><button type="button" data-c="tsm" aria-pressed="false">台積電 ADR</button><button type="button" data-c="vix" aria-pressed="false">VIX 恐慌指數</button><button type="button" data-c="us10y" aria-pressed="false">美債 10 年殖利率</button><button type="button" data-c="usdtwd" aria-pressed="false">美元兌台幣</button></div>
+  <div class="chips" role="group" aria-label="勾選要比較的指標"><button type="button" data-c="taiex" aria-pressed="false">加權指數</button><button type="button" data-c="2330" aria-pressed="false">台積電</button><button type="button" data-c="spx" aria-pressed="false">標普 500</button><button type="button" data-c="qqq" aria-pressed="false">那斯達克 100</button><button type="button" data-c="smh" aria-pressed="false">費城半導體</button><button type="button" data-c="tsm" aria-pressed="false">台積電 ADR</button><button type="button" data-c="vix" aria-pressed="false">VIX 恐慌指數</button><button type="button" data-c="us10y" aria-pressed="false">美債 10 年殖利率</button><button type="button" data-c="usdtwd" aria-pressed="false">美元兌台幣</button><button type="button" data-c="gold" aria-pressed="false">黃金</button><button type="button" data-c="btc" aria-pressed="false">比特幣</button><button type="button" data-c="ndc" aria-pressed="false">景氣燈號（每月）</button></div>
   <button type="button" class="open" aria-expanded="false" aria-controls="cmp-body">看比較圖<span aria-hidden="true">▾</span></button>
   <div class="body" id="cmp-body" hidden>
   <div class="modes" role="group" aria-label="排法"><button type="button" data-m="stack" aria-pressed="true">上下排</button><button type="button" data-m="overlay" aria-pressed="false">疊在一起</button></div>
   <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed="false">5天</button><button type="button" data-r="1M" aria-pressed="false">1月</button><button type="button" data-r="3M" aria-pressed="false">3月</button><button type="button" data-r="6M" aria-pressed="false">6月</button><button type="button" data-r="YTD" aria-pressed="false">今年</button><button type="button" data-r="1Y" aria-pressed="true">1年</button><button type="button" data-r="3Y" aria-pressed="false">3年</button><button type="button" data-r="5Y" aria-pressed="false">5年</button><button type="button" data-r="MAX" aria-pressed="false">最長</button></div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
-  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。</p>
+  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減，疊在一起時和其他指標一樣算變化 %，只供參考。</p>
   </div>
 </div></section><section class="group"><h2>台股</h2><details>
   <summary class="row">
@@ -231,14 +231,38 @@ details[open] summary.row{background:#1c1f24}
 </details><details>
   <summary class="row">
     <span class="name">美元兌台幣<small>USD/TWD</small></span>
-    <span class="value">33.026</span>
-    <span class="chg" style="color:#a7a59e">▲ 0.096</span>
-    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,20.5 3.3,21.0 4.6,23.1 5.9,23.6 7.2,22.7 8.5,22.9 9.7,22.2 11.0,22.6 12.3,23.7 13.6,25.4 14.9,25.5 16.2,26.0 17.5,23.5 18.8,22.9 20.1,22.3 21.4,21.5 22.6,20.2 23.9,20.4 25.2,21.0 26.5,22.0 27.8,22.9 29.1,21.3 30.4,21.0 31.7,21.4 33.0,21.4 34.3,20.4 35.5,20.1 36.8,19.8 38.1,20.6 39.4,21.8 40.7,21.4 42.0,20.4 43.3,19.3 44.6,19.4 45.9,19.2 47.2,16.6 48.5,15.4 49.7,13.4 51.0,12.5 52.3,11.2 53.6,9.8 54.9,12.8 56.2,9.5 57.5,9.9 58.8,10.4 60.1,12.0 61.4,12.6 62.6,9.9 63.9,9.3 65.2,9.6 66.5,7.5 67.8,6.2 69.1,2.0 70.4,7.1 71.7,6.7 73.0,4.3 74.3,5.6 75.5,4.5 76.8,5.4 78.1,4.1 79.4,4.9 80.7,4.6 82.0,3.2" stroke="#a7a59e" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+    <span class="value">32.958</span>
+    <span class="chg" style="color:#a7a59e">▼ 0.068</span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,21.0 3.3,23.1 4.6,23.6 5.9,22.7 7.2,22.9 8.5,22.2 9.7,22.6 11.0,23.7 12.3,25.4 13.6,25.5 14.9,26.0 16.2,23.5 17.5,22.9 18.8,22.3 20.1,21.5 21.4,20.2 22.6,20.4 23.9,21.0 25.2,22.0 26.5,22.9 27.8,21.3 29.1,21.0 30.4,21.4 31.7,21.4 33.0,20.4 34.3,20.1 35.5,19.8 36.8,20.6 38.1,21.8 39.4,21.4 40.7,20.4 42.0,19.3 43.3,19.4 44.6,19.2 45.9,16.6 47.2,15.4 48.5,13.4 49.7,12.5 51.0,11.2 52.3,9.8 53.6,12.8 54.9,9.5 56.2,9.9 57.5,10.4 58.8,12.0 60.1,12.6 61.4,9.9 62.6,9.3 63.9,9.6 65.2,7.5 66.5,6.2 67.8,2.0 69.1,7.1 70.4,6.7 71.7,4.3 73.0,5.6 74.3,4.5 75.5,5.4 76.8,4.1 78.1,4.9 79.4,4.6 80.7,3.2 82.0,4.2" stroke="#a7a59e" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
   </summary>
   <div class="chart" data-code="usdtwd" data-kind="point" data-dg="3">
   <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
+</div>
+</details></section><section class="group"><h2>其他資產</h2><details>
+  <summary class="row">
+    <span class="name">黃金<small>紐約期貨 · 美元／盎司</small></span>
+    <span class="value">3,515.4</span>
+    <span class="chg" style="color:#3fb27f">▼ 4.62%</span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,2.0 3.3,2.8 4.6,2.6 5.9,5.4 7.2,6.3 8.5,8.1 9.7,7.7 11.0,5.1 12.3,6.4 13.6,7.2 14.9,6.8 16.2,7.8 17.5,7.8 18.8,9.0 20.1,9.4 21.4,8.2 22.6,8.0 23.9,7.5 25.2,8.3 26.5,8.5 27.8,9.7 29.1,10.1 30.4,9.6 31.7,12.7 33.0,12.5 34.3,12.3 35.5,12.0 36.8,12.8 38.1,12.9 39.4,12.3 40.7,13.3 42.0,12.9 43.3,11.7 44.6,12.3 45.9,12.5 47.2,13.9 48.5,12.7 49.7,12.5 51.0,12.9 52.3,13.2 53.6,13.1 54.9,14.9 56.2,16.0 57.5,15.4 58.8,14.6 60.1,15.1 61.4,15.5 62.6,18.2 63.9,16.8 65.2,17.3 66.5,14.7 67.8,13.8 69.1,14.6 70.4,13.8 71.7,15.5 73.0,16.1 74.3,18.5 75.5,18.5 76.8,19.1 78.1,18.9 79.4,21.4 80.7,22.5 82.0,26.0" stroke="#3fb27f" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+  </summary>
+  <div class="chart" data-code="gold" data-kind="price" data-dg="1">
+  <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
+</div>
+</details><details>
+  <summary class="row">
+    <span class="name">比特幣<small>BTC · 美元 · 週末也交易</small></span>
+    <span class="value">60,094</span>
+    <span class="chg" style="color:#ef6a5f">▲ 2.20%</span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,6.7 3.3,2.0 4.6,2.4 5.9,3.9 7.2,3.9 8.5,4.2 9.7,3.9 11.0,3.9 12.3,4.7 13.6,4.6 14.9,4.6 16.2,3.5 17.5,3.8 18.8,3.6 20.1,2.1 21.4,2.7 22.6,2.9 23.9,4.9 25.2,6.3 26.5,5.5 27.8,5.2 29.1,4.5 30.4,6.2 31.7,5.0 33.0,6.4 34.3,5.9 35.5,6.4 36.8,6.5 38.1,6.0 39.4,6.1 40.7,5.2 42.0,4.2 43.3,6.6 44.6,6.8 45.9,7.0 47.2,7.7 48.5,7.7 49.7,7.0 51.0,6.6 52.3,9.6 53.6,10.1 54.9,9.9 56.2,9.2 57.5,10.6 58.8,10.0 60.1,7.3 61.4,11.2 62.6,11.4 63.9,11.4 65.2,12.4 66.5,11.8 67.8,13.1 69.1,12.9 70.4,15.2 71.7,17.8 73.0,21.4 74.3,20.4 75.5,20.8 76.8,20.7 78.1,22.4 79.4,23.3 80.7,26.0 82.0,24.9" stroke="#ef6a5f" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+  </summary>
+  <div class="chart" data-code="btc" data-kind="price" data-dg="0">
+  <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
 </details></section><section class="group"><h2>景氣（每月）</h2><details>
   <summary class="row">
@@ -258,7 +282,7 @@ details[open] summary.row{background:#1c1f24}
   </div>
 </details></section>
       <div class="foot">
-        <p style="margin:0">點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率）、國發會（景氣燈號，政府資料開放平台）。</p>
+        <p style="margin:0">點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）。</p>
         <details>
           <summary>晴雨怎麼判斷（草案）</summary>
           <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
@@ -276,7 +300,7 @@ const MA_LINES = [{"n": 60, "color": "#e0a95a"}, {"n": 240, "color": "#7fa7d9"}]
 const PE_MEAN = "#ecebe6", PE_BAND = "#8f8d87";
 const NDC_COLORS = ["#3d6fd1", "#8fb8e8", "#3fb27f", "#f0a03c", "#e5484d"], NDC_NAMES = ["藍", "黃藍", "綠", "黃紅", "紅"];
 const NDC_LEAD = "#ecebe6", NDC_COIN = "#7fa7d9";
-const CMP_META = {"taiex": {"name": "加權指數", "kind": "price", "dg": 2, "suf": ""}, "2330": {"name": "台積電", "kind": "price", "dg": 1, "suf": ""}, "spx": {"name": "標普 500", "kind": "price", "dg": 2, "suf": ""}, "qqq": {"name": "那斯達克 100", "kind": "price", "dg": 2, "suf": ""}, "smh": {"name": "費城半導體", "kind": "price", "dg": 2, "suf": ""}, "tsm": {"name": "台積電 ADR", "kind": "price", "dg": 2, "suf": ""}, "vix": {"name": "VIX 恐慌指數", "kind": "point", "dg": 2, "suf": ""}, "us10y": {"name": "美債 10 年殖利率", "kind": "point", "dg": 3, "suf": "%"}, "usdtwd": {"name": "美元兌台幣", "kind": "point", "dg": 3, "suf": ""}}, CMP_COLORS = ["#ecebe6", "#7fa7d9", "#e0a95a", "#5fc4b8", "#d58fb5"], CMP_DEFAULT = ["taiex", "2330", "spx"];
+const CMP_META = {"taiex": {"name": "加權指數", "kind": "price", "dg": 2, "suf": ""}, "2330": {"name": "台積電", "kind": "price", "dg": 1, "suf": ""}, "spx": {"name": "標普 500", "kind": "price", "dg": 2, "suf": ""}, "qqq": {"name": "那斯達克 100", "kind": "price", "dg": 2, "suf": ""}, "smh": {"name": "費城半導體", "kind": "price", "dg": 2, "suf": ""}, "tsm": {"name": "台積電 ADR", "kind": "price", "dg": 2, "suf": ""}, "vix": {"name": "VIX 恐慌指數", "kind": "point", "dg": 2, "suf": ""}, "us10y": {"name": "美債 10 年殖利率", "kind": "point", "dg": 3, "suf": "%"}, "usdtwd": {"name": "美元兌台幣", "kind": "point", "dg": 3, "suf": ""}, "gold": {"name": "黃金", "kind": "price", "dg": 1, "suf": ""}, "btc": {"name": "比特幣", "kind": "price", "dg": 0, "suf": ""}, "ndc": {"name": "景氣燈號", "kind": "score", "dg": 0, "suf": " 分"}}, CMP_COLORS = ["#ecebe6", "#7fa7d9", "#e0a95a", "#5fc4b8", "#d58fb5"], CMP_DEFAULT = ["taiex", "2330", "spx"];
 
 window.MW_SERIES = window.MW_SERIES || {};
 const DAY = 86400000, SVGNS = "http://www.w3.org/2000/svg";
@@ -288,7 +312,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611222148";
+    s.src = "series/" + code + ".js?v=202611222237";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);
@@ -597,6 +621,12 @@ window.addEventListener("resize", () => setTimeout(() => document.querySelectorA
 // 比較：勾選幾個指標放在一起看
 const CMP_MAX = 5;
 function lastLE(days, t) { let lo = 0, hi = days.length - 1, ans = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (days[m] <= t) { ans = m; lo = m + 1; } else hi = m - 1; } return ans; }
+function ndcMonthly(raw) {   // 景氣燈號（每月）→ 比較用的格式：每個月放在該月 1 日，end＝最後一個月的下個月 1 日
+  const [y, m] = raw.start.split("-").map(Number), days = [], c = [], l = [];
+  raw.s.forEach((v, i) => { if (v != null) { days.push(Date.UTC(y, m - 1 + i, 1) / DAY); c.push(v); l.push(raw.l[i]); } });
+  const e = new Date(days[days.length - 1] * DAY);
+  return {days, c, l, monthly: true, end: Date.UTC(e.getUTCFullYear(), e.getUTCMonth() + 1, 1) / DAY};
+}
 function cmpRender(box) {
   const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
   const ser = box._sel.filter(c => box._d[c]).map(code => ({code, m: CMP_META[code], d: box._d[code], color: CMP_COLORS[box._sel.indexOf(code)]}));
@@ -617,9 +647,17 @@ function cmpRender(box) {
   const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "比較：" + ser.map(s => s.m.name).join("、")});
   svg.style.height = H + "px";
   const tickText = (t, step, suf) => { const d = Math.max(0, Math.min(3, -Math.floor(Math.log10(step) + 1e-9))); return t.toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}) + suf; };
+  const Xc = day => Math.max(pl, X(day));   // 期間起點前的那一筆（例如上個月的燈號）畫在最左邊
   const line = (s, Y) => {
-    const pts = sample(s.i0, s.last + 1, s.d.c, Math.min(800, W * 2));
-    el("polyline", {points: pts.map(i => X(s.d.days[i]).toFixed(1) + "," + Y(i).toFixed(1)).join(" "), fill: "none", stroke: s.color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
+    let pts;
+    if (s.d.monthly) {   // 每月資料畫成階梯：一整個月同一個高度
+      pts = [];
+      for (let i = s.i0; i <= s.last; i++) {
+        const y = Y(i).toFixed(1), x1 = Math.min(X(i < s.last ? s.d.days[i + 1] : s.d.end), W - pr);
+        pts.push(Xc(s.d.days[i]).toFixed(1) + "," + y, x1.toFixed(1) + "," + y);
+      }
+    } else pts = sample(s.i0, s.last + 1, s.d.c, Math.min(800, W * 2)).map(i => Xc(s.d.days[i]).toFixed(1) + "," + Y(i).toFixed(1));
+    el("polyline", {points: pts.join(" "), fill: "none", stroke: s.color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
   };
   const labels = [];
   if (stack) {
@@ -639,6 +677,7 @@ function cmpRender(box) {
       s.Y = i => Yv(s.d.c[i]);
       line(s, s.Y);
       const ch = change(s.base, s.d.c[s.last], s.m.kind, s.m.dg);
+      if (s.m.kind === "score") ch.text += " 分";
       labels.push([top + 13, s, ch]);
     });
   } else {
@@ -666,10 +705,13 @@ function cmpRender(box) {
 
   const dot = s => `<span style="color:${s.color}">●</span>`;
   const pctText = v => `${v > 0 ? "▲" : v < 0 ? "▼" : "－"} ${Math.abs(v).toFixed(2)}%`;
-  const summary = `<b>${RANGE_LABEL[r]}</b>　` + ser.map(s => {
-    const v = s.pct(s.last);
-    return `<span class="nw">${dot(s)} ${s.m.name} <span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span></span>`;
-  }).join("　") + `　<span class="nw" style="color:#8f8d87">${iso(T0)} 起</span>`;
+  const chgHtml = (s, i) => {   // 漲跌：一般是 %；景氣燈號在上下排時看分數增減
+    if (stack && s.m.kind === "score") { const d = s.d.c[i] - s.base; return `<span style="color:${NEUTRAL}">${d > 0 ? "▲" : d < 0 ? "▼" : "－"} ${Math.abs(d)} 分</span>`; }
+    const v = s.pct(i);
+    return `<span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span>`;
+  };
+  const summary = `<b>${RANGE_LABEL[r]}</b>　` + ser.map(s => `<span class="nw">${dot(s)} ${s.m.name} ${chgHtml(s, s.last)}</span>`).join("　") +
+    `　<span class="nw" style="color:#8f8d87">${iso(T0)} 起</span>`;
   readout.innerHTML = summary;
   const show = ev => {
     const rect = svg.getBoundingClientRect();
@@ -679,9 +721,10 @@ function cmpRender(box) {
     vline.setAttribute("x1", X(day)); vline.setAttribute("x2", X(day)); vline.setAttribute("visibility", "visible");
     readout.innerHTML = `<b>${iso(day)}</b>　` + ser.map((s, k) => {
       const i = Math.max(s.i0, lastLE(s.d.days, day));
-      dots[k].setAttribute("cx", X(s.d.days[i])); dots[k].setAttribute("cy", s.Y(i)); dots[k].setAttribute("visibility", "visible");
-      const v = s.pct(i);
-      return `<span class="nw">${dot(s)} ${s.m.name} ${fmt(s.d.c[i], s.m.dg, s.m.suf)} <span style="color:${v >= 0 ? UP : DN}">${pctText(v)}</span></span>`;
+      dots[k].setAttribute("cx", s.d.monthly ? X(day) : Xc(s.d.days[i])); dots[k].setAttribute("cy", s.Y(i)); dots[k].setAttribute("visibility", "visible");
+      const extra = s.d.monthly ? ` ${iso(s.d.days[i]).slice(0, 7)}` : "";   // 每月資料標出是哪個月的
+      const light = s.d.l ? ` ${NDC_NAMES[s.d.l[i]]}燈` : "";
+      return `<span class="nw">${dot(s)} ${s.m.name}${extra} ${fmt(s.d.c[i], s.m.dg, s.m.suf)}${light} ${chgHtml(s, i)}</span>`;
     }).join("　");
   };
   const hide = () => { vline.setAttribute("visibility", "hidden"); dots.forEach(d => d.setAttribute("visibility", "hidden")); readout.innerHTML = summary; };
@@ -702,7 +745,7 @@ document.querySelectorAll(".cmp").forEach(box => {
     b.style.setProperty("--c", k >= 0 ? CMP_COLORS[k] : "transparent");
     b.disabled = k < 0 && box._sel.length >= CMP_MAX;
   });
-  const load = () => Promise.all(box._sel.map(c => box._d[c] || loadSeries(c).then(d => { box._d[c] = d; })))
+  const load = () => Promise.all(box._sel.map(c => box._d[c] || loadSeries(c).then(d => { box._d[c] = c === "ndc" ? ndcMonthly(d) : d; })))
     .then(() => cmpRender(box)).catch(() => { readout.textContent = "走勢資料載入失敗。"; });
   sync();
   const body = box.querySelector(".body"), open = box.querySelector(".open");

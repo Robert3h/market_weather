@@ -1,18 +1,21 @@
-# 每天自動抓行情、重建網站（GitHub Actions）
+# 每天自動抓行情、重建網站、部署到 GitHub Pages（GitHub Actions）
 # 排程用 UTC：台灣時間 = UTC + 8。GitHub 排程常會晚幾分鐘到半小時，正常。
+# 網站放在 website/（2026-11-22 前叫 docs/）。Pages 設定的 Source 要選「GitHub Actions」。
 name: 每日更新
 
 on:
   schedule:
     - cron: "0 7 * * 1-5"     # 台灣 15:00（週一～五）：台股收盤後
     - cron: "30 22 * * 1-5"   # 台灣隔天 06:30（週二～六）：美股收盤後
-  push:                        # 推上新程式時，立刻重跑一次
+  push:                        # 推上新程式或新的網站檔案（例如歷史版本）時，立刻重跑一次
     branches: [main]
-    paths: ["scripts/**", ".github/workflows/**"]
+    paths: ["scripts/**", ".github/workflows/**", "website/**"]
   workflow_dispatch:           # 在 GitHub 網頁 Actions 頁籤可以手動按「Run workflow」
 
 permissions:
   contents: write              # 要把新資料 commit 回 repo
+  pages: write                 # 部署網站
+  id-token: write              # 部署網站需要
 
 concurrency:
   group: update
@@ -22,6 +25,9 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +41,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data docs
+          git add data website
           if git diff --cached --quiet; then
             echo "完全沒有變化，不 commit。"
             exit 0
@@ -47,3 +53,15 @@ jobs:
           git commit -m "自動更新資料 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
           git pull --rebase origin main
           git push
+
+      - name: 準備部署
+        uses: actions/configure-pages@v5
+
+      - name: 打包網站（website/ 資料夾）
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+
+      - name: 部署到 GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

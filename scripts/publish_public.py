@@ -21,8 +21,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent
 REMOTE_URL = "https://github.com/Robert3h/market_weather.git"
-PUBLIC_PATHS = ["README.md", ".gitignore", ".github", "scripts", "data", "docs"]   # 只有這些會公開
-SYNC_PATHS = ["data", "docs"]   # 這兩個由 GitHub Actions 每天更新，以 GitHub 上的為準
+PUBLIC_PATHS = ["README.md", ".gitignore", ".github", "scripts", "data", "website"]   # 只有這些會公開
+SYNC_PATHS = ["data", "website"]   # 這兩個由 GitHub Actions 每天更新，以 GitHub 上的為準（2026-11-22 前網頁資料夾叫 docs）
 SSL = ["-c", "http.sslBackend=schannel"] if os.name == "nt" else []
 
 HOOK = """#!/bin/sh
@@ -55,13 +55,17 @@ def setup():
 
 
 def sync_from_github():
-    """data/、docs/ 每天由 GitHub Actions 更新，推之前先拿回本機 master，免得本機舊資料把它蓋掉。
-    本機自己跑 fetch_quotes 產生、還沒 commit 的資料會被 GitHub 版取代（GitHub 版才是每天累積的正本）。"""
-    git("checkout", "origin/main", "--", *SYNC_PATHS)
-    git("add", "--renormalize", "--", *SYNC_PATHS)   # 重新加入，讓換行符號照本機設定統一
-    if git("diff", "--cached", "--name-only", "--", *SYNC_PATHS):
+    """data/、website/ 每天由 GitHub Actions 更新，推之前先拿回本機 master，免得本機舊資料把它蓋掉。
+    本機自己跑 fetch_quotes 產生、還沒 commit 的資料會被 GitHub 版取代（GitHub 版才是每天累積的正本）。
+    本機新增、GitHub 上還沒有的檔案（例如新的 website/History/ 版本）不受影響。"""
+    paths = [p for p in SYNC_PATHS if git("ls-tree", "origin/main", "--", p)]   # GitHub 上還沒有的資料夾跳過
+    if not paths:
+        return
+    git("checkout", "origin/main", "--", *paths)
+    git("add", "--renormalize", "--", *paths)   # 重新加入，讓換行符號照本機設定統一
+    if git("diff", "--cached", "--name-only", "--", *paths):
         git("commit", "-m", "同步 GitHub 上的每日資料")
-        print("已把 GitHub 上最新的 data/、docs/ 同步回本機 master（已 commit）。\n")
+        print(f"已把 GitHub 上最新的 {'、'.join(p + '/' for p in paths)} 同步回本機 master（已 commit）。\n")
 
 
 def main():

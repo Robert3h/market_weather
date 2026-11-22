@@ -1,4 +1,4 @@
-"""讀 data/*.csv，產生一頁靜態儀表板 docs/index.html。
+"""讀 data/*.csv，產生一頁靜態儀表板 website/index.html。
 
 只用 Python 內建功能。執行方式：
     python -I scripts/build_site.py
@@ -17,8 +17,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
-OUT = ROOT / "docs" / "index.html"
-SERIES_DIR = ROOT / "docs" / "series"   # 每個指標的完整歷史，點開時才載入
+OUT = ROOT / "website" / "index.html"
+SERIES_DIR = ROOT / "website" / "series"   # 每個指標的完整歷史，點開時才載入
 
 SPARK_DAYS = 63      # 小走勢圖：約 3 個月的交易日
 CALENDAR_DAYS = 30   # 天氣日曆格數
@@ -156,7 +156,7 @@ EPOCH = dt.date(1970, 1, 1)
 
 
 def write_series(code, series):
-    """完整歷史寫成 docs/series/<代號>.js。
+    """完整歷史寫成 website/series/<代號>.js。
     用 .js（不是 .json），因為直接雙擊開本機 file:/// 時瀏覽器不准讀 JSON，但可以載入 script。
     日期存成『和前一筆差幾天』，數字只留需要的小數位，檔案小很多。"""
     days = [(dt.date.fromisoformat(d) - EPOCH).days for d, _ in series]
@@ -180,7 +180,7 @@ def load_ndc():
 
 
 def write_ndc_series(rows):
-    """docs/series/ndc.js：起始月份＋每月的分數、燈號（0＝藍…4＝紅）、領先、同時。"""
+    """website/series/ndc.js：起始月份＋每月的分數、燈號（0＝藍…4＝紅）、領先、同時。"""
     idx = {name: i for i, (name, _, _) in enumerate(NDC_LIGHTS)}
     body = json.dumps({"start": rows[0][0], "s": [r[1] for r in rows], "l": [idx.get(r[2]) for r in rows],
                        "ld": [r[3] for r in rows], "co": [r[4] for r in rows]}, separators=(",", ":"))
@@ -574,7 +574,7 @@ const DAY = 86400000, SVGNS = "http://www.w3.org/2000/svg";
 const RANGE_LABEL = {"5D":"5天","1M":"1個月","3M":"3個月","6M":"6個月","YTD":"今年以來","1Y":"1年","3Y":"3年","5Y":"5年","MAX":"最長"};
 const loading = {};
 
-// 點開才載入那個指標的完整歷史（docs/series/<代號>.js）
+// 點開才載入那個指標的完整歷史（website/series/<代號>.js）
 function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
@@ -948,6 +948,9 @@ details[open] summary.row{{background:#1c1f24}}
 .foot summary{{display:inline-block;min-height:24px;color:#a7a59e;text-decoration:underline;text-underline-offset:3px}}
 .foot summary:hover{{color:#ecebe6}}
 .foot summary:focus-visible{{outline:2px solid #d97757}}
+.foot a{{display:inline-block;min-height:24px;color:#a7a59e;text-underline-offset:3px}}
+.foot a:hover{{color:#ecebe6}}
+.foot a:focus-visible{{outline:2px solid #d97757}}
 .warn{{color:#e0a95a;font-size:13px;margin:0}}
 @media (max-width:480px){{
   .row{{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.9fr);min-height:56px}}
@@ -987,6 +990,7 @@ details[open] summary.row{{background:#1c1f24}}
           <summary>晴雨怎麼判斷（草案）</summary>
           <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
         </details>
+        <p style="margin:6px 0 0"><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
         <p style="margin:6px 0 0">只整理公開行情，不是投資建議。</p>
       </div>
     </main>

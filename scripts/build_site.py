@@ -1160,7 +1160,13 @@ GUIDE_JS = r"""
     const lockLand=()=>{ if(d.dataset.r==='16x9' && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); };
     const unlock=()=>{ if(screen.orientation && screen.orientation.unlock) try{ screen.orientation.unlock(); }catch(e){} };
     fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen().then(lockLand)).then(()=>setTimeout(()=>go(i),200)); });
-    document.addEventListener('fullscreenchange',()=>{ const on=document.fullscreenElement===d; fs.textContent=on?'離開全螢幕':'全螢幕'; if(on) strip.focus(); else unlock(); });
+    // 兩組投影片都會收到 fullscreenchange：只處理自己的。之前 4:5 那組在 16:9 進全螢幕時誤以為「離開了」而解除橫向鎖定，
+    // 手機轉一下又轉回來（Robert 2026-11-23 回報）。所以記住「自己有沒有在全螢幕」，自己離開時才解除。
+    document.addEventListener('fullscreenchange',()=>{
+      const on=document.fullscreenElement===d;
+      if(on){ d._fs=true; fs.textContent='離開全螢幕'; strip.focus(); }
+      else if(d._fs){ d._fs=false; fs.textContent='全螢幕'; unlock(); }
+    });
     upd();
   });
 })();

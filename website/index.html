@@ -139,7 +139,7 @@ details[open] summary.row{background:#1c1f24}
 <header class="site-header">
   <div class="hwrap">
     <a class="brand" href="#top"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="sr">今天雨，</span>market_weather</a>
-    <nav aria-label="跳到這一頁的區塊"><a href="#today">今天</a><a href="#compare">比較</a><a href="#list">指標</a><a href="#ndc">景氣</a><a href="backtest.html">回測</a></nav>
+    <nav aria-label="跳到這一頁的區塊"><a href="#today">今天</a><a href="#compare">比較</a><a href="#list">指標</a><a href="#ndc">景氣</a><a href="backtest.html">回測</a><a href="guide.html">手冊</a></nav>
   </div>
 </header>
 <div class="wrap">
@@ -517,9 +517,10 @@ details[open] summary.row{background:#1c1f24}
       <summary>晴雨怎麼判斷（草案）</summary>
       <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
     </details>
+    <p><a href="guide.html">使用教學</a>（雙宇和子琦帶你看懂這個網站）</p>
     <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
     <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
-    <p>網頁更新於 2026-11-23 10:49（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p>網頁更新於 2026-11-23 11:03（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
   </div>
 </footer>
@@ -542,7 +543,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611231049";
+    s.src = "series/" + code + ".js?v=202611231103";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);

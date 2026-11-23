@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>維修日誌 · market_weather</title>
+<style>*{box-sizing:border-box}
+html{scroll-padding-top:64px}
+@media (max-width:480px){html{scroll-padding-top:92px}}
+body{margin:0;background:#14161a;color:#ecebe6;font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.site-header{position:sticky;top:0;z-index:20;background:#14161a;border-bottom:1px solid #262930}
+.hwrap{max-width:1180px;margin:0 auto;padding:8px 1rem;display:flex;align-items:center;gap:4px 16px}
+.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:#ecebe6;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:.04em}
+.brand .icon{width:22px;height:22px;flex:none}
+.brand:hover{color:#d97757}
+.brand:focus-visible,.site-header nav a:focus-visible,a:focus-visible{outline:2px solid #d97757;outline-offset:2px;border-radius:4px}
+.site-header nav{margin-left:auto;display:flex;gap:2px}
+.site-header nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 10px;color:#a7a59e;text-decoration:none;font-size:14px;white-space:nowrap}
+.site-header nav a:hover{color:#d97757;text-decoration:underline;text-underline-offset:4px}
+.site-header nav a[aria-current=page]{color:#d97757;font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.doc{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem;display:flex;flex-direction:column;gap:28px}
+h1{margin:0 0 10px;font-size:28px;line-height:1.3}
+h2{margin:0 0 8px;font-size:18px}
+p{margin:0 0 10px;font-size:15px;line-height:1.8;color:#c9c7c0}
+.lead{font-size:16px;color:#ecebe6}
+.muted{font-size:13px;color:#8f8d87}
+a{color:#d97757}a:hover{color:#eb9474}
+.tbl{overflow-x:auto;margin:8px 0 10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font-weight:600;color:#8f8d87;text-align:right;padding:7px 8px;border-bottom:1px solid #262930}
+td{padding:8px;border-bottom:1px solid #1f2227;text-align:right;color:#c9c7c0}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+td.win{color:#ecebe6;font-weight:600}
+ul{margin:0;padding-left:1.2em;color:#c9c7c0;font-size:14px;line-height:1.8}
+.site-footer{border-top:1px solid #262930}
+.site-footer .foot{max-width:760px;margin:0 auto;padding:20px 1rem 40px}
+.site-footer p{margin:0 0 6px;font-size:12px;color:#8f8d87;line-height:1.7}
+.site-footer a{color:#a7a59e}
+@media (max-width:480px){.hwrap{padding:4px 12px 0;gap:0;flex-wrap:wrap}.brand{font-size:14px;gap:6px;min-height:36px}
+.site-header nav{margin-left:0;width:100%;justify-content:space-between}.site-header nav a{padding:0 4px}
+table{font-size:12px}th,td{padding:6px 4px}h1{font-size:24px}}
+.doc.wide{max-width:1040px}
+.pick{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 16px}
+.pick button{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #3a3d44;background:transparent;color:#c9c7c0;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.pick button:hover{border-color:#d97757;color:#ecebe6}
+.pick button:focus-visible,.ctl button:focus-visible,.strip:focus-visible{outline:2px solid #d97757;outline-offset:2px}
+.pick button[aria-pressed=true]{background:#d97757;border-color:#d97757;color:#14161a;font-weight:600}
+.pick .rec{font-size:12px;line-height:1.4;padding:0 6px;border-radius:4px;border:1px solid currentColor}
+.deck[hidden]{display:none}
+.strip{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:2px}
+.strip::-webkit-scrollbar{display:none}
+.strip img{flex:0 0 88%;width:88%;height:auto;scroll-snap-align:start;border-radius:10px;border:1px solid #262930;display:block;background:#1c1f24}
+.deck[data-r="4x5"] .strip img{flex-basis:min(88%,440px);width:min(88%,440px)}
+.ctl{display:flex;align-items:center;gap:8px;margin-top:10px}
+.ctl button{font:inherit;font-size:15px;min-width:44px;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid #3a3d44;background:transparent;color:#ecebe6;cursor:pointer}
+.ctl button:hover{border-color:#d97757;color:#d97757}
+.ctl .pos{font-variant-numeric:tabular-nums;color:#a7a59e;font-size:14px;margin-right:auto}
+.deck:fullscreen{background:#000;display:flex;flex-direction:column;justify-content:center;padding:12px}
+.deck:fullscreen .strip img,.deck[data-r="4x5"]:fullscreen .strip img{flex-basis:100%;width:100%;max-height:calc(100vh - 84px);object-fit:contain;border:0;background:#000}
+.log{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;letter-spacing:.08em;color:#8f8d87}
+.lb-head h1{margin-top:6px}
+.lb-stack{list-style:none;padding:0;margin:16px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.lb-stack a{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid #3a3d44;border-radius:12px;text-decoration:none;color:#ecebe6;height:100%}
+.lb-stack a:hover{border-color:#d97757}
+.lb-stack b{font-size:17px}
+.lb-stack span:last-child{font-size:13px;line-height:1.6;color:#a7a59e}
+.quick{margin:14px 0 0;font-size:14px}
+.quick a{display:inline-flex;align-items:center;min-height:44px}
+section h2 .log{margin-right:6px}
+.sub{font-size:14px;color:#a7a59e;margin:0 0 4px}
+.mx-list{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;align-items:start}
+.mx-card{border:1px solid #2c2f36;border-radius:12px;background:#181a1f}
+.mx-card:hover{border-color:#d97757}
+.mx-card:target{border-color:#d97757;box-shadow:0 0 0 1px #d97757}
+.mx-card summary{list-style:none;cursor:pointer;padding:12px 44px 12px 16px;position:relative;min-height:44px;border-radius:12px}
+.mx-card summary::-webkit-details-marker{display:none}
+.mx-card summary::after{content:"+";position:absolute;right:16px;top:10px;font-size:22px;line-height:1.2;color:#a7a59e}
+.mx-card[open] summary::after{content:"−"}
+.mx-card summary:focus-visible{outline:2px solid #d97757;outline-offset:2px}
+.mx-card h3{margin:4px 0 0;font-size:16px;line-height:1.45;font-weight:600}
+.mx-body{padding:0 16px 16px}
+.mx-dl{margin:0;display:flex;flex-direction:column;gap:10px}
+.mx-dl dt{font-size:12px;color:#8f8d87;margin-bottom:2px}
+.mx-dl dd{margin:0;font-size:14px;line-height:1.75;color:#c9c7c0}
+.mx-mine dt{color:#d97757}
+.mx-quote{margin:12px 0 0;padding:10px 12px;border-left:3px solid #d97757;background:#1f2126;border-radius:0 8px 8px 0}
+.mx-quote p{margin:0;font-size:14px;color:#ecebe6}
+.mx-quote footer{margin-top:2px}
+.mx-go{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;font-size:14px}
+.lb-ground{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px 20px}
+.lb-ground li{border-top:1px solid #2c2f36;padding-top:10px}
+.lb-ground h3{font-size:15px;margin:4px 0 4px}
+.lb-ground p{font-size:13px;line-height:1.7;margin:0}
+@media (max-width:640px){.lb-stack{grid-template-columns:1fr}}
+.brand .icon{color:#6b9bf0}</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="hwrap">
+    <a class="brand" href="index.html"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="sr">今天雨，回首頁，</span>market_weather</a>
+    <nav aria-label="網站導覽"><a href="index.html#today">今天</a><a href="index.html#compare">比較</a><a href="index.html#list">指標</a><a href="index.html#ndc">景氣</a><a href="backtest.html">回測</a><a href="guide.html">手冊</a></nav>
+  </div>
+</header>
+<main>
+<div class="doc wide">
+<header class="lb-head">
+  <p class="log">SW711 TECH LOG // 維修日誌</p>
+  <h1>這個小工具是怎麼改出來的</h1>
+  <p class="lead">從 2026-11-20 開工到現在，進廠改裝過 18 次。每一次，都在回答同樣三件事。</p>
+  <ol class="lb-stack"><li><a href="#glance"><span class="log">初衷 01</span><b>一眼看懂</b><span>先看結論，細節點開才有</span></a></li><li><a href="#fact"><span class="log">初衷 02</span><b>只講事實</b><span>數字有來源、有日期，不說買賣</span></a></li><li><a href="#long"><span class="log">初衷 03</span><b>看長一點</b><span>把今天放進歷史裡看</span></a></li></ol>
+  <p class="quick">字太多了嗎？<a href="#deck">看機長和座艙長的投影片版（電腦版 16:9 · 22 頁、手機版 4:5 · 10 張）↓</a></p>
+</header>
+
+<section aria-labelledby="glance">
+  <h2 id="glance"><span class="log">初衷 01</span>一眼看懂</h2>
+  <p class="sub">先看結論，細節點開才有：打開就知道今天是晴還是雨；想深入，再一層一層點開。</p>
+  <ul class="mx-list"><li><details class="mx-card" id="mx-1120-06">
+  <summary><span class="log">MX-1120-06 · 2026-11-20</span><h3>最上面一個大字：晴、陰、雨</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>想知道今天市場怎麼樣，要一個一個看台股、美股、VIX 的數字，自己拼出結論。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>最上面一個大字先給結論，下面一行寫原因和資料日期；台股、美股收盤時間不同，日期各寫各的。再往下是最近 30 個交易日的天氣日曆。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不做即時跳動的報價、不放新聞牆；平靜的日子，「今天值得注意」整塊不出現。</dd></div>
+  </dl><a class="mx-go" href="index.html#today">看今天的天氣 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-04">
+  <summary><span class="log">MX-1123-04 · 2026-11-23</span><h3>頁首一直都在</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>頁面越來越長，往下捲之後想回到比較或景氣，得一路捲回最上面。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>頁首釘在畫面上方：左邊是今天的天氣小圖示，點了回到最上面；右邊直接跳到今天、比較、指標、景氣，和另外兩頁回測、手冊。原本夾在列表中間的說明，搬到頁尾。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>頁尾不釘選：手機畫面小，會擋住內容。</dd></div>
+  </dl><blockquote class="mx-quote"><p>「有 Header 和 Footer，而且是釘選住的」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote><a class="mx-go" href="index.html#list">往下捲看看 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1122-03">
+  <summary><span class="log">MX-1122-03 · 2026-11-22</span><h3>比較：把指標放在一起看</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>想知道台積電和標普 500 是不是一起漲跌，要在兩張圖之間來回對日期。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>勾選最多 5 個指標。「上下排」各自刻度、共用時間軸，手指移到哪一天，每張圖一起顯示；「疊在一起」從同一個起點算漲跌 %。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不超過 5 個，線太多就看不清楚；勾了哪些只記在讀者自己的瀏覽器。</dd></div>
+  </dl><a class="mx-go" href="index.html#compare">打開比較 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1122-07">
+  <summary><span class="log">MX-1122-07 · 2026-11-22</span><h3>勾選按鈕直接露出來</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>「比較」原本整組收在一行字裡，看起來不像可以點，找不到要從哪裡選指標。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>勾選按鈕直接攤在外面，按任一個就展開比較圖；下面一顆「看比較圖 ▾」，再按一次收起。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不寫「請點這裡選擇指標」：按鈕長得像按鈕，就不用說明。</dd></div>
+  </dl><a class="mx-go" href="index.html#compare">看勾選按鈕 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-13">
+  <summary><span class="log">MX-1123-13 · 2026-11-23</span><h3>使用教學：機長和座艙長帶你看</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>第一次打開的人，不知道走勢圖可以點開、比較可以勾選、回測在另一頁。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>做成投影片：雙宇和子琦像機上廣播一樣，一頁講一個功能，配上真的網頁截圖。電腦版 16:9、手機版 4:5 都放，依螢幕推薦一個，標「建議」。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>台詞只教怎麼操作、解釋數字是什麼意思，不說買賣。</dd></div>
+  </dl><blockquote class="mx-quote"><p>「說明投影片也可以使用雙宇跟子琦的對話方式和風格」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote><a class="mx-go" href="guide.html">看使用教學 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-15">
+  <summary><span class="log">MX-1123-15 · 2026-11-23</span><h3>全螢幕時，手機自己轉橫向</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>手機直拿看 16:9 的投影片，圖只剩畫面中間一小條。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>按了全螢幕，16:9 那組自動轉成橫向；離開全螢幕，就轉回原本的方向。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>只在讀者自己按了全螢幕之後才轉；4:5 不轉。iPhone 的 Safari 不支援，維持原樣。</dd></div>
+  </dl><blockquote class="mx-quote"><p>「全螢幕 16:9 的時候，螢幕會自動旋轉」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote><a class="mx-go" href="guide.html">用手機打開使用教學 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-17">
+  <summary><span class="log">MX-1123-17 · 2026-11-23</span><h3>維修日誌：每一次改裝都記下來</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>網站一直在改，回頭看不出哪裡變了、為什麼這樣改。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>每次改版寫一張改裝卡：讀者遇到什麼、選擇這樣做、選擇不做，加上 Robert 當天說的話。平常只露編號和標題，想看哪張再點開。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不寫成程式改了哪幾行的技術紀錄；這一頁只寫讀者看得到的改變。</dd></div>
+  </dl><blockquote class="mx-quote"><p>「紀錄下我們網站改版的變化」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote></div>
+</details></li></ul>
+</section>
+<section aria-labelledby="fact">
+  <h2 id="fact"><span class="log">初衷 02</span>只講事實</h2>
+  <p class="sub">數字有來源、有日期，不說買賣：估計值標「估計」，資料停了就寫停在哪天，名字寫錯了就改。</p>
+  <ul class="mx-list"><li><details class="mx-card" id="mx-1120-05">
+  <summary><span class="log">MX-1120-05 · 2026-11-20</span><h3>風向指標不上紅綠</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>紅綠在台股代表漲跌，也常被當成好壞；但 VIX 上漲是市場緊張，美債殖利率上漲不一定是壞事。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>台股、美股照台股習慣紅漲綠跌；風向那組（VIX、美債殖利率、美元兌台幣）只用灰色，數字和箭頭照樣看得出漲跌。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不替讀者決定漲是好事還是壞事。</dd></div>
+  </dl><a class="mx-go" href="index.html#wind">看風向那組 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-06">
+  <summary><span class="log">MX-1123-06 · 2026-11-23</span><h3>名字寫錯了，就改</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>半導體 ETF（SMH）原本標成「費城半導體」，但它追蹤的不是費城半導體指數。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>改名「半導體 ETF」，另外加上真正的費城半導體指數（SOX）和輝達（NVDA）；比較和展開細節自動都有。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>觀察名單一次只加幾個，不無限加長。</dd></div>
+  </dl><a class="mx-go" href="index.html#us">看美股那組 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-07">
+  <summary><span class="log">MX-1123-07 · 2026-11-23</span><h3>本益比：估計值標「估計」</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>標普 500 的本益比每月一筆，最近幾個月是用預估盈餘算的，和已經公布的數字混在一起，看不出差別。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>點開標普 500 可以切換「指數｜本益比」；用預估盈餘算的那幾筆，圖上和讀數都標橘色「（估計）」。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>加權指數的本益比，還沒找到能穩定下載的官方來源，先不放，不拿第三方的數字湊。</dd></div>
+  </dl><a class="mx-go" href="index.html#i-spx">打開標普 500 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1121-10">
+  <summary><span class="log">MX-1121-10 · 2026-11-21</span><h3>台積電本益比：和自己的過去比</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>本益比 20 倍算高還是低，單看一個數字說不出來。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>台積電可以切換「股價｜本益比」：畫出所選期間的平均和 ±1 個標準差，讀數寫現在在平均上下幾個標準差。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不寫「便宜」「昂貴」：只說現在和過去比，落在哪個位置。</dd></div>
+  </dl><a class="mx-go" href="index.html#i-2330">打開台積電 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1122-11">
+  <summary><span class="log">MX-1122-11 · 2026-11-22</span><h3>黃金、比特幣：放一組，但不吵</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>其他資產大漲大跌的時候，想知道它們和股市是不是一起動。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>新增「其他資產」一組：黃金、比特幣，也能在「比較」裡勾選。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不列進「今天值得注意」，也不影響晴雨：比特幣常常一天動 2% 以上，會洗版。</dd></div>
+  </dl><a class="mx-go" href="index.html#other">看其他資產 →</a></div>
+</details></li></ul>
+</section>
+<section aria-labelledby="long">
+  <h2 id="long"><span class="log">初衷 03</span>看長一點</h2>
+  <p class="sub">把今天放進歷史裡看：走勢看得到最長，跌幅和過去每一次對照，做法用幾十年的資料回測。</p>
+  <ul class="mx-list"><li><details class="mx-card" id="mx-1121-01">
+  <summary><span class="log">MX-1121-01 · 2026-11-21</span><h3>走勢圖：5 天到最長</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>只看近幾個月，看不出現在的位置在長期裡算高還是低。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>補齊全部歷史（標普 500、美債到 1970 年，加權指數 1997 年起）。點開任一行，期間從 5 天到最長；手指或滑鼠移到圖上，看那天的數字。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>走勢資料點開才下載，打開網頁不先載入全部歷史。</dd></div>
+  </dl><a class="mx-go" href="index.html#i-taiex">打開加權指數 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1121-09">
+  <summary><span class="log">MX-1121-09 · 2026-11-21</span><h3>季線、年線：參考座標</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>走勢圖只有一條線，看不出現在比過去一季、一年的平均高還是低。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>價格類的指標加上季線（60 日）、年線（240 日）兩條細虛線；手指滑動時，多顯示「距年線 ±x%」。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>VIX、美債、匯率不畫；均線只是座標，不當成買賣訊號，年線進出過去的結果寫在回測頁。</dd></div>
+  </dl><a class="mx-go" href="index.html#i-qqq">打開那斯達克 100 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1121-13">
+  <summary><span class="log">MX-1121-13 · 2026-11-21</span><h3>景氣燈號：每月一根</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>股市每天在變，景氣燈號一個月才公布一次，放在一起看不出景氣走到哪一段。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>另外一組「景氣（每月）」：最新分數、燈號和上月比；點開是每月一根、塗上燈號顏色的長條圖，最早到 1984 年。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>國發會會回頭修正舊資料，所以每次整份重抓，不只補最新一個月。</dd></div>
+  </dl><a class="mx-go" href="index.html#i-ndc">打開景氣燈號 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-11">
+  <summary><span class="log">MX-1123-11 · 2026-11-23</span><h3>比較裡的景氣燈號，看得出顏色</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>在「比較」裡勾景氣燈號，只有一條階梯線，看得出分數高低，看不出是什麼燈。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>線下方加一條燈號色帶，每個月一格；上下排時，背景淡淡塗上五個燈號的分數區間，線走到哪一區，就是哪個燈。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不把線本身換成燈號顏色：會和其他指標的線撞色，例如紅燈和上漲的紅。</dd></div>
+  </dl><blockquote class="mx-quote"><p>「讓資訊更清楚」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote><a class="mx-go" href="index.html#compare">在比較裡勾景氣燈號 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-05">
+  <summary><span class="log">MX-1123-05 · 2026-11-23</span><h3>展開細節：這次跌得算深嗎</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>大跌的時候，只知道今天跌多少，不知道和過去幾次比，算不算深。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>走勢圖下面三塊：距歷史最高點跌多少、跌了多久；52 週高低的位置；過去每一次從前高跌超過 20%，跌多深、跌多久、多久回到前高。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不預測這次會跌到哪裡、多久回來；只用收盤價、不含股息，都寫在表格下面。</dd></div>
+  </dl><a class="mx-go" href="index.html#i-taiex">打開加權指數往下看 →</a></div>
+</details></li><li><details class="mx-card" id="mx-1123-09">
+  <summary><span class="log">MX-1123-09 · 2026-11-23</span><h3>回測：長期持有、年線、景氣燈號</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>讀者遇到什麼</dt><dd>常聽到「跌破年線就賣」「藍燈買、紅燈賣」，但不知道過去幾十年真的照做，結果會怎樣。</dd></div>
+    <div class="mx-mine"><dt>○ 選擇這樣做</dt><dd>另一頁「回測」，每次網站更新都用最新資料重算：長期持有、年線進出、藍燈買紅燈賣。結果照實列，也寫上作者自己的長期原則。</dd></div>
+    <div><dt>✕ 選擇不做</dt><dd>不挑對自己有利的數字：哪一種在哪個市場贏，就寫哪一種；方法和限制（沒算股息、交易成本只算台股）都寫清楚。</dd></div>
+  </dl><blockquote class="mx-quote"><p>「投資原則我就是喜歡長期」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote><a class="mx-go" href="backtest.html">看回測 →</a></div>
+</details></li></ul>
+</section>
+<section aria-labelledby="ground">
+  <h2 id="ground"><span class="log">GROUND CREW</span>看不見的地勤</h2>
+  <p class="sub">讀者看不到這些，但每天準時更新，都靠它們。</p>
+  <ul class="lb-ground"><li><p class="log">MX-1121-05</p><h3>每個交易日自動更新兩次</h3><p>台灣時間 15:00（台股收盤後）、06:30（美股收盤後），GitHub 自動抓資料、重建網站；證交所抓不到時改用 Yahoo。</p></li><li><p class="log">MX-1121-01</p><h3>台股數字對過兩個來源</h3><p>近期的台股以證交所為準，和 Yahoo 比對 255 天一致；更早的資料才用 Yahoo 補。</p></li><li><p class="log">MX-1121-03</p><h3>只公開網站那一半</h3><p>公開的只有網頁和行情資料；私人的檔案留在作者自己的電腦，不會被推上去。</p></li><li><p class="log">MX-1122-06</p><h3>每次改版，留一份當時的樣子</h3><p>推上線前，把整個網頁連同當時的資料存一份；「歷史版本」打得開每一版。</p></li></ul>
+</section>
+
+<section aria-labelledby="deck">
+  <h2 id="deck">投影片版</h2>
+  <p class="sub">同一份維修日誌做成簡報：子琦廣播帶路，雙宇引用 Robert 改裝當天說的話。</p>
+  <div class="pick" role="group" aria-label="選擇版本"><button type="button" data-r="16x9" aria-pressed="false">電腦版 16:9 · 22 頁</button><button type="button" data-r="4x5" aria-pressed="false">手機版 4:5 · 10 張</button></div>
+  <div class="deck" data-r="16x9"><div class="strip" tabindex="0" aria-label="維修日誌 電腦版 16:9，左右滑動"><img src="logbook/16x9/01.jpg" alt="封面：SW711 TECH LOG 維修日誌，股市晴雨表是怎麼改出來的。機長陳雙宇與座艙長永瀨子琦。" loading="lazy"><img src="logbook/16x9/02.jpg" alt="飛行紀錄：2026-11-20 開工到 11-23 的時間軸，以及三個設計初衷：一眼看懂、只講事實、看長一點。" loading="lazy"><img src="logbook/16x9/03.jpg" alt="MX-1120-06：最上面一個大字：晴、陰、雨" loading="lazy"><img src="logbook/16x9/04.jpg" alt="MX-1123-04：頁首一直都在" loading="lazy"><img src="logbook/16x9/05.jpg" alt="MX-1122-03：比較：把指標放在一起看" loading="lazy"><img src="logbook/16x9/06.jpg" alt="MX-1122-07：勾選按鈕直接露出來" loading="lazy"><img src="logbook/16x9/07.jpg" alt="MX-1123-13：使用教學：機長和座艙長帶你看" loading="lazy"><img src="logbook/16x9/08.jpg" alt="MX-1123-15：全螢幕時，手機自己轉橫向" loading="lazy"><img src="logbook/16x9/09.jpg" alt="MX-1123-17：維修日誌：每一次改裝都記下來" loading="lazy"><img src="logbook/16x9/10.jpg" alt="MX-1120-05：風向指標不上紅綠" loading="lazy"><img src="logbook/16x9/11.jpg" alt="MX-1123-06：名字寫錯了，就改" loading="lazy"><img src="logbook/16x9/12.jpg" alt="MX-1123-07：本益比：估計值標「估計」" loading="lazy"><img src="logbook/16x9/13.jpg" alt="MX-1121-10：台積電本益比：和自己的過去比" loading="lazy"><img src="logbook/16x9/14.jpg" alt="MX-1122-11：黃金、比特幣：放一組，但不吵" loading="lazy"><img src="logbook/16x9/15.jpg" alt="MX-1121-01：走勢圖：5 天到最長" loading="lazy"><img src="logbook/16x9/16.jpg" alt="MX-1121-09：季線、年線：參考座標" loading="lazy"><img src="logbook/16x9/17.jpg" alt="MX-1121-13：景氣燈號：每月一根" loading="lazy"><img src="logbook/16x9/18.jpg" alt="MX-1123-11：比較裡的景氣燈號，看得出顏色" loading="lazy"><img src="logbook/16x9/19.jpg" alt="MX-1123-05：展開細節：這次跌得算深嗎" loading="lazy"><img src="logbook/16x9/20.jpg" alt="MX-1123-09：回測：長期持有、年線、景氣燈號" loading="lazy"><img src="logbook/16x9/21.jpg" alt="看不見的地勤：每天自動更新、台股對過兩個來源、只公開網站那一半、每次改版留一份歷史版本。" loading="lazy"><img src="logbook/16x9/22.jpg" alt="結尾：市場有晴有雨，這個小工具還在改。" loading="lazy"></div><div class="ctl"><button type="button" class="prev" aria-label="上一張">‹</button><span class="pos" aria-live="polite">1 / 22</span><button type="button" class="next" aria-label="下一張">›</button><button type="button" class="fs">全螢幕</button></div></div><div class="deck" data-r="4x5"><div class="strip" tabindex="0" aria-label="維修日誌 手機版 4:5，左右滑動"><img src="logbook/4x5/01.jpg" alt="封面：SW711 TECH LOG 維修日誌。機長陳雙宇與座艙長永瀨子琦。" loading="lazy"><img src="logbook/4x5/02.jpg" alt="飛行紀錄：每一次改裝，都在回答三件事：一眼看懂、只講事實、看長一點。" loading="lazy"><img src="logbook/4x5/03.jpg" alt="初衷 01「一眼看懂」的所有改裝：最上面一個大字：晴、陰、雨、頁首一直都在、比較：把指標放在一起看、勾選按鈕直接露出來、使用教學：機長和座艙長帶你看、全螢幕時，手機自己轉橫向、維修日誌：每一次改裝都記下來。" loading="lazy"><img src="logbook/4x5/04.jpg" alt="MX-1120-06：最上面一個大字：晴、陰、雨" loading="lazy"><img src="logbook/4x5/05.jpg" alt="初衷 02「只講事實」的所有改裝：風向指標不上紅綠、名字寫錯了，就改、本益比：估計值標「估計」、台積電本益比：和自己的過去比、黃金、比特幣：放一組，但不吵。" loading="lazy"><img src="logbook/4x5/06.jpg" alt="MX-1123-07：本益比：估計值標「估計」" loading="lazy"><img src="logbook/4x5/07.jpg" alt="初衷 03「看長一點」的所有改裝：走勢圖：5 天到最長、季線、年線：參考座標、景氣燈號：每月一根、比較裡的景氣燈號，看得出顏色、展開細節：這次跌得算深嗎、回測：長期持有、年線、景氣燈號。" loading="lazy"><img src="logbook/4x5/08.jpg" alt="MX-1123-05：展開細節：這次跌得算深嗎" loading="lazy"><img src="logbook/4x5/09.jpg" alt="看不見的地勤：每天自動更新、台股對過兩個來源、只公開網站那一半、每次改版留一份歷史版本。" loading="lazy"><img src="logbook/4x5/10.jpg" alt="結尾：市場有晴有雨，這個小工具還在改。" loading="lazy"></div><div class="ctl"><button type="button" class="prev" aria-label="上一張">‹</button><span class="pos" aria-live="polite">1 / 10</span><button type="button" class="next" aria-label="下一張">›</button><button type="button" class="fs">全螢幕</button></div></div>
+</section>
+</div>
+</main>
+<footer class="site-footer">
+  <div class="foot">
+    <p>網頁更新於 2026-11-23 14:39（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p><a href="index.html">回到今天的天氣</a> · <a href="guide.html">使用教學</a> · <a href="logbook.html">維修日誌</a> · <a href="History/index.html">歷史版本</a></p>
+    <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
+  </div>
+</footer>
+<script>
+(function(){
+  const picks=[...document.querySelectorAll('.pick button')], decks=[...document.querySelectorAll('.deck')];
+  const phone=matchMedia('(orientation: portrait) and (max-width: 820px)').matches;   // 手機直拿：先看 4:5
+  const rec=phone?'4x5':'16x9';
+  picks.forEach(b=>{ if(b.dataset.r===rec){ b.insertAdjacentHTML('beforeend','<small class="rec">建議</small>'); b.parentNode.prepend(b); } });
+  const show=r=>{ picks.forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===r)); decks.forEach(d=>d.hidden=d.dataset.r!==r); };
+  picks.forEach(b=>b.addEventListener('click',()=>show(b.dataset.r)));
+  show(rec);
+  decks.forEach(d=>{
+    const strip=d.querySelector('.strip'), imgs=[...strip.children], pos=d.querySelector('.pos');
+    const cur=()=>{ let best=0,dist=1e9; imgs.forEach((im,i)=>{ const x=Math.abs(im.offsetLeft-strip.scrollLeft-strip.offsetLeft); if(x<dist){dist=x;best=i;} }); return best; };
+    const go=i=>{ i=Math.max(0,Math.min(imgs.length-1,i)); strip.scrollTo({left:imgs[i].offsetLeft-strip.offsetLeft,behavior:'smooth'}); };
+    const upd=()=>{ pos.textContent=(cur()+1)+' / '+imgs.length; };
+    strip.addEventListener('scroll',()=>{ clearTimeout(strip._t); strip._t=setTimeout(upd,60); });
+    d.querySelector('.prev').addEventListener('click',()=>go(cur()-1));
+    d.querySelector('.next').addEventListener('click',()=>go(cur()+1));
+    strip.addEventListener('keydown',e=>{ if(e.key==='ArrowRight'){go(cur()+1);e.preventDefault();} if(e.key==='ArrowLeft'){go(cur()-1);e.preventDefault();} });
+    const fs=d.querySelector('.fs');
+    if(!d.requestFullscreen){ fs.hidden=true; }
+    // 16:9 全螢幕時要求手機轉成橫向（Screen Orientation API：Android Chrome 支援；iPhone Safari 不支援，失敗就照原樣）
+    const lockLand=()=>{ if(d.dataset.r==='16x9' && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); };
+    const unlock=()=>{ if(screen.orientation && screen.orientation.unlock) try{ screen.orientation.unlock(); }catch(e){} };
+    fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen().then(lockLand)).then(()=>setTimeout(()=>go(i),200)); });
+    // 兩組投影片都會收到 fullscreenchange：只處理自己的。之前 4:5 那組在 16:9 進全螢幕時誤以為「離開了」而解除橫向鎖定，
+    // 手機轉一下又轉回來（Robert 2026-11-23 回報）。所以記住「自己有沒有在全螢幕」，自己離開時才解除。
+    document.addEventListener('fullscreenchange',()=>{
+      const on=document.fullscreenElement===d;
+      if(on){ d._fs=true; fs.textContent='離開全螢幕'; strip.focus(); }
+      else if(d._fs){ d._fs=false; fs.textContent='全螢幕'; unlock(); }
+    });
+    upd();
+  });
+})();
+
+(function(){
+  const open=()=>{ const id=decodeURIComponent(location.hash.slice(1)), t=id&&document.getElementById(id);
+    if(t&&t.tagName==='DETAILS'&&!t.open){ t.open=true; requestAnimationFrame(()=>t.scrollIntoView()); } };
+  open(); addEventListener('hashchange',open);
+})();
+</script>
+</body>
+</html>

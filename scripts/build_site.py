@@ -34,6 +34,7 @@ WEATHER = {
 }
 
 # (代號, 名稱, 副標, 組別, 顯示方式)  顯示方式：price＝漲跌用 %，point＝漲跌用點數、不上紅綠
+GROUP_IDS = {"台股": "list", "美股": "us", "風向": "wind", "其他資產": "other"}
 ROWS = [
     ("taiex", "加權指數", "TAIEX", "台股", "price"),
     ("2330", "台積電", "2330", "台股", "price"),
@@ -223,7 +224,7 @@ def ndc_row(rows):
     buttons = "".join(f'<button type="button" data-r="{r}" aria-pressed="{str(r == "5Y").lower()}">{lab}</button>'
                       for r, lab in NDC_RANGES)
     legend = "".join(f'<span><i class="sw" style="background:{c}"></i>{n} {rg}</span>' for n, c, rg in NDC_LIGHTS)
-    return f"""<details>
+    return f"""<details id="i-ndc">
   <summary class="row">
     <span class="name">景氣燈號<small>國發會 · {int(ym[:4])} 年 {int(ym[5:])} 月</small></span>
     <span class="value">{score} 分</span>
@@ -957,6 +958,8 @@ import backtest as bt   # noqa: E402
 BT_NAMES = {"taiex": "加權指數", "spx": "標普 500", "qqq": "那斯達克 100（QQQ）"}
 
 BT_CSS = """*{box-sizing:border-box}
+html{scroll-padding-top:64px}
+@media (max-width:480px){html{scroll-padding-top:92px}}
 body{margin:0;background:#14161a;color:#ecebe6;font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;-webkit-text-size-adjust:100%}
 .site-header{position:sticky;top:0;z-index:20;background:#14161a;border-bottom:1px solid #262930}
 .hwrap{max-width:1180px;margin:0 auto;padding:8px 1rem;display:flex;align-items:center;gap:4px 16px}
@@ -1173,29 +1176,45 @@ GUIDE_JS = r"""
 """
 
 
-def guide_page(w, built, nav_links):
-    """手冊頁：16:9、4:5 兩組使用教學。website/guide/ 沒有圖就不產生，回傳 False。"""
-    base = OUT.parent / "guide"
-    sets = {r: sorted((base / r).glob("*.jpg")) for r in ("16x9", "4x5")}
-    if not any(sets.values()):
-        return False
-    label = {"16x9": ("電腦版 16:9", "頁"), "4x5": ("手機版 4:5", "張")}
-    picks = "".join(f'<button type="button" data-r="{r}" aria-pressed="false">{label[r][0]} · {len(v)} {label[r][1]}</button>'
+DECK_LABEL = {"16x9": ("電腦版 16:9", "頁"), "4x5": ("手機版 4:5", "張")}
+
+
+def deck_sets(folder):
+    """website/<folder>/<比例>/*.jpg（工具/publish_guide.py 放的）。"""
+    base = OUT.parent / folder
+    return {r: sorted((base / r).glob("*.jpg")) for r in DECK_LABEL}
+
+
+def deck_pair(folder, name, alts=None, eager=2):
+    """兩顆切換按鈕＋兩組投影片的 HTML。alts＝{比例: 每張的替代文字}，張數要和圖一樣，不一樣就停下來（換了投影片忘了改文字）。"""
+    sets = deck_sets(folder)
+    for r, v in sets.items():
+        if v and alts and len(alts[r]) != len(v):
+            raise SystemExit(f"{folder}/{r} 有 {len(v)} 張，替代文字有 {len(alts[r])} 句，要一樣（改 scripts/logbook_data.py 的 DECK_ALTS）")
+    picks = "".join(f'<button type="button" data-r="{r}" aria-pressed="false">{DECK_LABEL[r][0]} · {len(v)} {DECK_LABEL[r][1]}</button>'
                     for r, v in sets.items() if v)
+    alt = lambda r, i: alts[r][i - 1] if alts else f"{name} {DECK_LABEL[r][0]} 第 {i} {DECK_LABEL[r][1]}"
     decks = "".join(
-        f'<div class="deck" data-r="{r}"><div class="strip" tabindex="0" aria-label="使用教學 {label[r][0]}，左右滑動">'
-        + "".join(f'<img src="guide/{r}/{f.name}" alt="使用教學 {label[r][0]} 第 {i} {label[r][1]}" loading="{"eager" if i < 3 else "lazy"}">'
+        f'<div class="deck" data-r="{r}"><div class="strip" tabindex="0" aria-label="{name} {DECK_LABEL[r][0]}，左右滑動">'
+        + "".join(f'<img src="{folder}/{r}/{f.name}" alt="{html.escape(alt(r, i))}" loading="{"eager" if i <= eager else "lazy"}">'
                   for i, f in enumerate(v, 1))
         + '</div><div class="ctl"><button type="button" class="prev" aria-label="上一張">‹</button>'
           f'<span class="pos" aria-live="polite">1 / {len(v)}</span>'
           '<button type="button" class="next" aria-label="下一張">›</button><button type="button" class="fs">全螢幕</button></div></div>'
         for r, v in sets.items() if v)
+    return f'<div class="pick" role="group" aria-label="選擇版本">{picks}</div>\n  {decks}'
+
+
+def guide_page(w, built, nav_links):
+    """手冊頁：16:9、4:5 兩組使用教學。website/guide/ 沒有圖就不產生，回傳 False。"""
+    if not any(deck_sets("guide").values()):
+        return False
     body = f"""<div class="doc wide">
 <section>
   <h1>使用教學</h1>
   <p>雙宇和子琦帶你看懂這個網站：今天的天氣、指標、走勢圖、比較和回測頁怎麼看。</p>
-  <div class="pick" role="group" aria-label="選擇版本">{picks}</div>
-  {decks}
+  {deck_pair("guide", "使用教學")}
+  <p class="muted">想知道這個小工具是怎麼一步步改出來的？看<a href="logbook.html">維修日誌</a>。</p>
 </section>
 </div>"""
     page = doc_shell("使用教學 · market_weather", body, w, built, nav_links, GUIDE_CSS, GUIDE_JS)
@@ -1228,13 +1247,127 @@ def doc_shell(title, body, w, built, nav_links, extra_css="", extra_js=""):
 <footer class="site-footer">
   <div class="foot">
     <p>網頁更新於 {built}（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
-    <p><a href="index.html">回到今天的天氣</a> · <a href="History/index.html">歷史版本</a></p>
+    <p><a href="index.html">回到今天的天氣</a> · <a href="guide.html">使用教學</a> · <a href="logbook.html">維修日誌</a> · <a href="History/index.html">歷史版本</a></p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
   </div>
 </footer>
 {js}
 </body>
 </html>
+"""
+
+
+# ---------- 維修日誌頁（第 8 輪，2026-11-23）：website/logbook.html ----------
+# 照 LSA 網站 /logbook/ 的做法：三個設計初衷，每張改裝卡分「讀者遇到什麼／○ 選擇這樣做／✕ 選擇不做」，加上 Robert 當天說的話。
+# 卡片文字只寫在 scripts/logbook_data.py（投影片產生器 工具/make_logbook_v*.py 也讀它）。
+# 卡片用 <details> 收折：平常只露編號、日期、標題，一眼掃完全部改裝；沒有 JS 也能開合，網址帶 #mx-… 時自動打開那一張。
+import logbook_data as LBD   # noqa: E402
+
+LB_CSS = """.log{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;letter-spacing:.08em;color:#8f8d87}
+.lb-head h1{margin-top:6px}
+.lb-stack{list-style:none;padding:0;margin:16px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.lb-stack a{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid #3a3d44;border-radius:12px;text-decoration:none;color:#ecebe6;height:100%}
+.lb-stack a:hover{border-color:#d97757}
+.lb-stack b{font-size:17px}
+.lb-stack span:last-child{font-size:13px;line-height:1.6;color:#a7a59e}
+.quick{margin:14px 0 0;font-size:14px}
+.quick a{display:inline-flex;align-items:center;min-height:44px}
+section h2 .log{margin-right:6px}
+.sub{font-size:14px;color:#a7a59e;margin:0 0 4px}
+.mx-list{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;align-items:start}
+.mx-card{border:1px solid #2c2f36;border-radius:12px;background:#181a1f}
+.mx-card:hover{border-color:#d97757}
+.mx-card:target{border-color:#d97757;box-shadow:0 0 0 1px #d97757}
+.mx-card summary{list-style:none;cursor:pointer;padding:12px 44px 12px 16px;position:relative;min-height:44px;border-radius:12px}
+.mx-card summary::-webkit-details-marker{display:none}
+.mx-card summary::after{content:"+";position:absolute;right:16px;top:10px;font-size:22px;line-height:1.2;color:#a7a59e}
+.mx-card[open] summary::after{content:"−"}
+.mx-card summary:focus-visible{outline:2px solid #d97757;outline-offset:2px}
+.mx-card h3{margin:4px 0 0;font-size:16px;line-height:1.45;font-weight:600}
+.mx-body{padding:0 16px 16px}
+.mx-dl{margin:0;display:flex;flex-direction:column;gap:10px}
+.mx-dl dt{font-size:12px;color:#8f8d87;margin-bottom:2px}
+.mx-dl dd{margin:0;font-size:14px;line-height:1.75;color:#c9c7c0}
+.mx-mine dt{color:#d97757}
+.mx-quote{margin:12px 0 0;padding:10px 12px;border-left:3px solid #d97757;background:#1f2126;border-radius:0 8px 8px 0}
+.mx-quote p{margin:0;font-size:14px;color:#ecebe6}
+.mx-quote footer{margin-top:2px}
+.mx-go{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;font-size:14px}
+.lb-ground{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px 20px}
+.lb-ground li{border-top:1px solid #2c2f36;padding-top:10px}
+.lb-ground h3{font-size:15px;margin:4px 0 4px}
+.lb-ground p{font-size:13px;line-height:1.7;margin:0}
+@media (max-width:640px){.lb-stack{grid-template-columns:1fr}}
+"""
+
+
+def _mx_card(c):
+    k, mx, date, title, reader, mine, no, quote, href, go = c
+    E = html.escape
+    q = (f'<blockquote class="mx-quote"><p>「{E(quote)}」</p><footer class="log">改裝當天 Robert 說的話</footer></blockquote>'
+         if quote else "")
+    link = f'<a class="mx-go" href="{href}">{E(go)} →</a>' if href else ""
+    return f"""<li><details class="mx-card" id="{mx.lower()}">
+  <summary><span class="log">{mx} · {date}</span><h3>{E(title)}</h3></summary>
+  <div class="mx-body"><dl class="mx-dl">
+    <div><dt>{E(LBD.LABELS['reader'])}</dt><dd>{E(reader)}</dd></div>
+    <div class="mx-mine"><dt>{E(LBD.LABELS['mine'])}</dt><dd>{E(mine)}</dd></div>
+    <div><dt>{E(LBD.LABELS['no'])}</dt><dd>{E(no)}</dd></div>
+  </dl>{q}{link}</div>
+</details></li>"""
+
+
+def logbook_page(w, built, nav_links):
+    E = html.escape
+    sets = deck_sets("logbook")
+    has_deck = any(sets.values())
+    stack = "".join(f'<li><a href="#{k}"><span class="log">初衷 {n}</span><b>{E(name)}</b><span>{E(short)}</span></a></li>'
+                    for k, n, name, short, _ in LBD.PRINCIPLES)
+    quick = ""
+    if has_deck:
+        counts = "、".join(f"{DECK_LABEL[r][0]} · {len(v)} {DECK_LABEL[r][1]}" for r, v in sets.items() if v)
+        quick = f'<p class="quick">字太多了嗎？<a href="#deck">看機長和座艙長的投影片版（{counts}）↓</a></p>'
+    sections = "".join(f"""
+<section aria-labelledby="{k}">
+  <h2 id="{k}"><span class="log">初衷 {n}</span>{E(name)}</h2>
+  <p class="sub">{E(short)}：{E(longer)}</p>
+  <ul class="mx-list">{"".join(_mx_card(c) for c in LBD.CARDS if c[0] == k)}</ul>
+</section>""" for k, n, name, short, longer in LBD.PRINCIPLES)
+    ground = "".join(f'<li><p class="log">{mx}</p><h3>{E(t)}</h3><p>{E(d)}</p></li>' for mx, t, d in LBD.GROUND)
+    deck = (f"""
+<section aria-labelledby="deck">
+  <h2 id="deck">投影片版</h2>
+  <p class="sub">同一份維修日誌做成簡報：子琦廣播帶路，雙宇引用 Robert 改裝當天說的話。</p>
+  {deck_pair("logbook", "維修日誌", {"16x9": LBD.DECK_ALTS, "4x5": LBD.DECK_ALTS45}, eager=0)}
+</section>""" if has_deck else "")
+    first = min(c[2] for c in LBD.CARDS)
+    body = f"""<div class="doc wide">
+<header class="lb-head">
+  <p class="log">SW711 TECH LOG // 維修日誌</p>
+  <h1>這個小工具是怎麼改出來的</h1>
+  <p class="lead">從 {first} 開工到現在，進廠改裝過 {len(LBD.CARDS)} 次。每一次，都在回答同樣三件事。</p>
+  <ol class="lb-stack">{stack}</ol>
+  {quick}
+</header>
+{sections}
+<section aria-labelledby="ground">
+  <h2 id="ground"><span class="log">GROUND CREW</span>看不見的地勤</h2>
+  <p class="sub">讀者看不到這些，但每天準時更新，都靠它們。</p>
+  <ul class="lb-ground">{ground}</ul>
+</section>
+{deck}
+</div>"""
+    page = doc_shell("維修日誌 · market_weather", body, w, built, nav_links, GUIDE_CSS + LB_CSS, GUIDE_JS + OPEN_HASH_JS)
+    (OUT.parent / "logbook.html").write_text(page, encoding="utf-8", newline="\n")
+
+
+# 網址帶 #某個 <details> 的 id 時打開它（首頁 #i-<代號>、維修日誌 #mx-…）：「去看看」一點就落在那個功能上，不用自己找、自己點開
+OPEN_HASH_JS = r"""
+(function(){
+  const open=()=>{ const id=decodeURIComponent(location.hash.slice(1)), t=id&&document.getElementById(id);
+    if(t&&t.tagName==='DETAILS'&&!t.open){ t.open=true; requestAnimationFrame(()=>t.scrollIntoView()); } };
+  open(); addEventListener('hashchange',open);
+})();
 """
 
 
@@ -1295,7 +1428,7 @@ def build():
             stale = ""
             if s[-1][0] < newest[group]:
                 stale = f'<small class="stale">資料停在 {md(s[-1][0])}</small>'
-            rows_html.append(f"""<details>
+            rows_html.append(f"""<details id="i-{code}">
   <summary class="row">
     <span class="name">{name}<small>{sub}</small>{stale}</span>
     <span class="value">{fmt_value(code, s[-1][1])}</span>
@@ -1313,7 +1446,7 @@ def build():
                 if est:   # 記下從哪天起是估計值，圖上才能標「估計」
                     extra["est"] = (dt.date.fromisoformat(est) - EPOCH).days
                 write_series(pe_code, load(pe_code), extra)
-        anchor = ' id="list"' if group == "台股" else ""   # 頁首「指標」跳到第一組
+        anchor = f' id="{GROUP_IDS[group]}"'   # 台股＝#list（頁首「指標」跳到第一組）；其他組給維修日誌的「去看看」用
         groups_html.append(f'<section class="group"{anchor}><h2>{group}</h2>{"".join(rows_html)}</section>')
     ndc = load_ndc()
     groups_html.insert(0, f'<section class="group" id="compare"><h2>比較</h2>{compare_block(bool(ndc))}</section>')
@@ -1327,6 +1460,7 @@ def build():
     links = lambda here: [(f"index.html#{a}", t, False) for a, t in nav] + [(h, t, h == here) for h, t in pages]
     backtest_page(series_map, ndc, w, built, links("backtest.html"), bool(ndc))
     guide_page(w, built, links("guide.html"))
+    logbook_page(w, built, links("logbook.html"))
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
     ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
     cmp_meta = {code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code == "us10y" else ""}
@@ -1511,6 +1645,7 @@ details[open] summary.row{{background:#1c1f24}}
     </details>
     <p><a href="guide.html">使用教學</a>（雙宇和子琦帶你看懂這個網站）</p>
     <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
+    <p><a href="logbook.html">維修日誌</a>（這個小工具每一次改了什麼、為什麼這樣改）</p>
     <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
     <p>網頁更新於 {built}（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
@@ -1527,6 +1662,7 @@ const CMP_META = {cmp_meta}, CMP_COLORS = {json.dumps(CMP_COLORS)}, CMP_DEFAULT 
 {chart_js}
 {NDC_JS}
 {CMP_JS}
+{OPEN_HASH_JS}
 </script>
 </body>
 </html>

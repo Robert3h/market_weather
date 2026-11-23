@@ -1156,8 +1156,11 @@ GUIDE_JS = r"""
     strip.addEventListener('keydown',e=>{ if(e.key==='ArrowRight'){go(cur()+1);e.preventDefault();} if(e.key==='ArrowLeft'){go(cur()-1);e.preventDefault();} });
     const fs=d.querySelector('.fs');
     if(!d.requestFullscreen){ fs.hidden=true; }
-    fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen()).then(()=>setTimeout(()=>go(i),120)); });
-    document.addEventListener('fullscreenchange',()=>{ fs.textContent=document.fullscreenElement===d?'離開全螢幕':'全螢幕'; if(document.fullscreenElement===d) strip.focus(); });
+    // 16:9 全螢幕時要求手機轉成橫向（Screen Orientation API：Android Chrome 支援；iPhone Safari 不支援，失敗就照原樣）
+    const lockLand=()=>{ if(d.dataset.r==='16x9' && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); };
+    const unlock=()=>{ if(screen.orientation && screen.orientation.unlock) try{ screen.orientation.unlock(); }catch(e){} };
+    fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen().then(lockLand)).then(()=>setTimeout(()=>go(i),200)); });
+    document.addEventListener('fullscreenchange',()=>{ const on=document.fullscreenElement===d; fs.textContent=on?'離開全螢幕':'全螢幕'; if(on) strip.focus(); else unlock(); });
     upd();
   });
 })();

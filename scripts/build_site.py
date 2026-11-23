@@ -39,7 +39,9 @@ ROWS = [
     ("2330", "台積電", "2330", "台股", "price"),
     ("spx", "標普 500", "S&P 500", "美股", "price"),
     ("qqq", "那斯達克 100", "QQQ", "美股", "price"),
-    ("smh", "費城半導體", "SMH", "美股", "price"),
+    ("sox", "費城半導體指數", "SOX", "美股", "price"),   # 2026-11-23 加：觀察名單
+    ("smh", "半導體 ETF", "SMH", "美股", "price"),       # 2026-11-23 改名：SMH 追蹤 MVIS 半導體指數，不是費城半導體（SOX）
+    ("nvda", "輝達", "NVDA", "美股", "price"),            # 2026-11-23 加：觀察名單
     ("tsm", "台積電 ADR", "TSM", "美股", "price"),
     ("vix", "VIX 恐慌指數", "20 以下算平靜", "風向", "point"),
     ("us10y", "美債 10 年殖利率", "US10Y", "風向", "point"),
@@ -161,7 +163,16 @@ def spark_points(values, w=84, h=28, pad=2):
 EPOCH = dt.date(1970, 1, 1)
 
 
-def write_series(code, series):
+def first_estimate(code):
+    """本益比資料裡第一筆「估計值」的日期（source 欄有「估計」），沒有就 None。"""
+    path = DATA_DIR / f"{code}.csv"
+    if not path.exists():
+        return None
+    with path.open(encoding="utf-8", newline="") as f:
+        return next((r["date"] for r in csv.DictReader(f) if "估計" in r["source"]), None)
+
+
+def write_series(code, series, extra=None):
     """完整歷史寫成 website/series/<代號>.js。
     用 .js（不是 .json），因為直接雙擊開本機 file:/// 時瀏覽器不准讀 JSON，但可以載入 script。
     日期存成『和前一筆差幾天』，數字只留需要的小數位，檔案小很多。"""
@@ -169,7 +180,7 @@ def write_series(code, series):
     deltas = [days[0]] + [b - a for a, b in zip(days, days[1:])]
     dg = DIGITS.get(code, 2)
     closes = [round(v, dg + 1) for _, v in series]
-    body = json.dumps({"d": deltas, "c": closes}, separators=(",", ":"))
+    body = json.dumps({"d": deltas, "c": closes, **(extra or {})}, separators=(",", ":"))
     SERIES_DIR.mkdir(parents=True, exist_ok=True)
     (SERIES_DIR / f"{code}.js").write_text(f"MW_SERIES[{json.dumps(code)}]={body};\n", encoding="utf-8")
 
@@ -537,10 +548,10 @@ def chart_block(code, kind):
     if pe_code and (DATA_DIR / f"{pe_code}.csv").exists():   # 有本益比資料才出現「股價｜本益比」切換
         pe_attr = f' data-pe="{pe_code}"'
         modes = ('<div class="modes" role="group" aria-label="圖表類型">'
-                 '<button type="button" data-m="price" aria-pressed="true">股價</button>'
+                 f'<button type="button" data-m="price" aria-pressed="true">{"股價" if code == "2330" else "指數"}</button>'
                  '<button type="button" data-m="pe" aria-pressed="false">本益比</button></div>\n  ')
         legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
-                   f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（證交所本益比）</span></p>')
+                   f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span></p>')
     return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}"{suf}{pe_attr}>
   {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
@@ -549,7 +560,9 @@ def chart_block(code, kind):
 
 
 MA_LINES = [(60, "#e0a95a", "季線 60 日"), (240, "#7fa7d9", "年線 240 日")]   # 移動平均線：天數、顏色、名稱（只是參考座標）
-PE_FOR = {"2330": "2330_pe"}             # 哪個指標有本益比：指標代號 → 本益比資料代號（data/<代號>.csv）
+PE_FOR = {"2330": "2330_pe", "spx": "spx_pe"}   # 哪個指標有本益比：指標代號 → 本益比資料代號（data/<代號>.csv）
+PE_NOTE = {"2330_pe": "證交所本益比，每天",
+           "spx_pe": "multpl.com，每月、過去 12 個月盈餘；最近幾個月是用預估盈餘算的估計值，之後會修正"}
 PE_MEAN, PE_BAND = "#ecebe6", "#8f8d87"  # 本益比圖：期間平均線、±1 標準差線的顏色
 RANGES = [("5D", "5天"), ("1M", "1月"), ("3M", "3月"), ("6M", "6月"), ("YTD", "今年"),
           ("1Y", "1年"), ("3Y", "3年"), ("5Y", "5年"), ("MAX", "最長")]
@@ -603,6 +616,105 @@ def notable(series_map):
         c = pct(fx, len(fx) - 1)
         notes.append(f"美元兌台幣一天{'升' if c > 0 else '貶'} {abs(c):.2f}%（台幣{'貶值' if c > 0 else '升值'}）。")
     return notes
+
+
+# ---------- 展開細節：距最高點、52 週高低、過去大跌（第 2 輪，2026-11-23） ----------
+BEAR = -20.0       # 「大跌」門檻：從前高跌超過 20%（業界慣用的熊市定義）
+FACT_ROWS = 8      # 過去大跌最多列幾次（最近的在上面）
+
+
+def span_text(d1, d2):
+    """兩個日期相隔多久：未滿 2 年寫月，2 年以上寫年。"""
+    days = (dt.date.fromisoformat(d2) - dt.date.fromisoformat(d1)).days
+    months = days / 30.44
+    if months < 1:
+        return f"{days} 天"
+    return f"{months:.0f} 個月" if months < 24 else f"{months / 12:.1f} 年"
+
+
+def drawdowns(s):
+    """把整段歷史切成一波一波的「從前高下跌 → 回到前高」。
+    回傳 (目前的前高索引, [(高點索引, 谷底索引, 回到前高的索引或 None), ...])。只用收盤價。"""
+    eps, peak, trough = [], 0, 0
+    for i, (_, v) in enumerate(s):
+        if v >= s[peak][1]:
+            if trough != peak:                       # 有跌下去過、現在回到前高：這一波結束
+                eps.append((peak, trough, i))
+            peak = trough = i
+        elif v < s[trough][1]:
+            trough = i
+    if trough != peak:                               # 還沒回到前高：這一波還在進行
+        eps.append((peak, trough, None))
+    return peak, eps
+
+
+def facts_block(code, kind, s):
+    """展開後、走勢圖下面的固定數字。價格類：距最高點、52 週高低、過去大跌；點數類只有 52 週高低。"""
+    if len(s) < 2:
+        return ""
+    last_d, last_v = s[-1]
+    cut = (dt.date.fromisoformat(last_d) - dt.timedelta(days=365)).isoformat()
+    win = [x for x in s if x[0] > cut]
+    hi_d, hi_v = max(win, key=lambda x: x[1])
+    lo_d, lo_v = min(win, key=lambda x: x[1])
+    pos = (last_v - lo_v) / (hi_v - lo_v) * 100 if hi_v > lo_v else 50
+    f = lambda v: fmt_value(code, v)
+    parts = [f"""<div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 {f(lo_v)}，最高 {f(hi_v)}，現在 {f(last_v)}，在區間的 {pos:.0f}% 位置">
+      <span class="bar"><i style="left:{pos:.1f}%"></i></span>
+      <span class="lo">{f(lo_v)}<small>{lo_d}</small></span><span class="hi">{f(hi_v)}<small>{hi_d}</small></span>
+    </div>
+  </div>"""]
+    if kind != "price":
+        return f'<div class="facts">{"".join(parts)}</div>'
+
+    peak, eps = drawdowns(s)
+    ath_d, ath_v = s[peak]
+    dd = (last_v / ath_v - 1) * 100
+    if dd > -0.05:
+        now = f"現在就在歷史最高點附近（{ath_d}，{f(ath_v)}）。"
+    else:
+        now = f'距歷史最高點 <b style="color:{DN}">−{abs(dd):.1f}%</b>（最高點 {ath_d}，{f(ath_v)}）。'
+    ongoing = eps[-1] if eps and eps[-1][2] is None else None
+    if ongoing:
+        p_, t_, _ = ongoing
+        depth = (s[t_][1] / s[p_][1] - 1) * 100
+        if t_ == len(s) - 1:                         # 谷底就是今天：跌幅和上一句一樣，不重複寫
+            now += f"從高點下跌到現在 {span_text(s[p_][0], last_d)}，還沒回到前高。"
+        elif depth <= -5:
+            now += f"這一波最深跌到 −{abs(depth):.1f}%（{s[t_][0]}），從高點算起已 {span_text(s[p_][0], last_d)}，還沒回到前高。"
+    parts.insert(0, f'<div class="fact"><h3>距最高點</h3><p>{now}</p></div>')
+
+    big = [e for e in eps if (s[e[1]][1] / s[e[0]][1] - 1) * 100 <= BEAR]
+    since = s[0][0][:4]
+    if big:
+        done = [e for e in big if e[2] is not None]
+        rec = sorted((dt.date.fromisoformat(s[r][0]) - dt.date.fromisoformat(s[t][0])).days / 30.44 for _, t, r in done)
+        med = ""
+        if rec:
+            m = rec[len(rec) // 2] if len(rec) % 2 else (rec[len(rec) // 2 - 1] + rec[len(rec) // 2]) / 2
+            med = f"已回到前高的 {len(done)} 次，從谷底回到前高的時間中位數約 {m:.0f} 個月。"
+        rows = []
+        for p_, t_, r_ in reversed(big[-FACT_ROWS:]):
+            depth = (s[t_][1] / s[p_][1] - 1) * 100
+            back = span_text(s[t_][0], s[r_][0]) if r_ is not None else "還沒回到"
+            cls = ' class="now"' if r_ is None else ""
+            rows.append(f'<tr{cls}><td>{s[p_][0][:7]} → {s[t_][0][:7]}</td><td class="num" style="color:{DN}">−{abs(depth):.1f}%</td>'
+                        f'<td class="num">{span_text(s[p_][0], s[t_][0])}</td><td class="num">{back}</td></tr>')
+        more = f"（只列最近 {FACT_ROWS} 次）" if len(big) > FACT_ROWS else ""
+        parts.append(f"""<div class="fact">
+    <h3>過去跌超過 {abs(BEAR):.0f}% 的幾次</h3>
+    <p>{since} 年以來共 {len(big)} 次{more}。{med}「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody>{"".join(rows)}</tbody>
+    </table></div>
+  </div>""")
+    else:
+        parts.append(f'<div class="fact"><h3>過去跌超過 {abs(BEAR):.0f}% 的幾次</h3><p>{since} 年以來沒有從前高跌超過 {abs(BEAR):.0f}% 過。</p></div>')
+    parts.append(f'<p class="note">用每天收盤價計算，{since} 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p>')
+    return f'<div class="facts">{"".join(parts)}</div>'
 
 
 # ---------- 互動走勢圖（瀏覽器端，純 JavaScript，不用套件） ----------
@@ -701,7 +813,8 @@ function render(box) {
   const data = pe ? box._pe : box._data; if (!data) return;
   const kind = pe ? "pe" : box.dataset.kind, dg = pe ? 2 : +box.dataset.dg, suf = pe ? "" : (box.dataset.suf || "");
   const r = box._range, days = data.days, c = data.c, n = days.length;
-  const i0 = startIndex(days, r), last = n - 1;
+  const i0 = pe && data.monthly && (r === "5D" || r === "1M") ? Math.max(0, n - 2) : startIndex(days, r), last = n - 1;   // 每月資料：期間太短時至少畫最近兩個月
+  const estTag = i => pe && data.est != null && days[i] >= data.est ? '<span style="color:#e0a95a">（估計）</span>' : "";
   let stat = null;
   if (pe) {                                      // 平均和標準差用所選期間的每一天算（選 3 年＝3 年平均）
     let s = 0, s2 = 0, k = last - i0 + 1;
@@ -763,7 +876,7 @@ function render(box) {
   plot.replaceChildren(svg);
 
   const summary = pe
-    ? `<b>${RANGE_LABEL[r]}</b>　本益比 ${c[last].toFixed(2)} 倍　<span class="nw"><span style="color:#8f8d87">平均</span> ${stat.mean.toFixed(1)}</span>　<span class="nw"><span style="color:#8f8d87">位置</span> ${zText(c[last])}</span>`
+    ? `<b>${RANGE_LABEL[r]}</b>　本益比 ${c[last].toFixed(2)} 倍${estTag(last)}　<span class="nw"><span style="color:#8f8d87">平均</span> ${stat.mean.toFixed(1)}</span>　<span class="nw"><span style="color:#8f8d87">位置</span> ${zText(c[last])}</span>`
     : `<b>${RANGE_LABEL[r]}</b>　<span style="color:${ch.color}">${ch.text}</span>　<span style="color:#8f8d87">${iso(days[i0])} → ${iso(days[last])}</span>`;
   readout.innerHTML = summary;
 
@@ -774,7 +887,7 @@ function render(box) {
     vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
     dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(c[i])); dot.setAttribute("visibility", "visible");
     if (pe) {
-      readout.innerHTML = `<b>${iso(days[i])}</b>　本益比 ${c[i].toFixed(2)} 倍　<span class="nw"><span style="color:#8f8d87">較期間平均</span> ${zText(c[i])}</span>`;
+      readout.innerHTML = `<b>${iso(days[i])}</b>　本益比 ${c[i].toFixed(2)} 倍${estTag(i)}　<span class="nw"><span style="color:#8f8d87">較期間平均</span> ${zText(c[i])}</span>`;
       return;
     }
     const ci = change(c[i0], c[i], kind, dg);
@@ -823,6 +936,169 @@ window.addEventListener("resize", () => {
   resizeTimer = setTimeout(() => document.querySelectorAll("details[open] .chart").forEach(render), 150);
 });
 """
+
+
+# ---------- 回測頁（第 6 輪，2026-11-23）：website/backtest.html ----------
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I 不會把程式所在資料夾放進搜尋路徑
+import backtest as bt   # noqa: E402
+
+BT_NAMES = {"taiex": "加權指數", "spx": "標普 500", "qqq": "那斯達克 100（QQQ）"}
+
+BT_CSS = """*{box-sizing:border-box}
+body{margin:0;background:#14161a;color:#ecebe6;font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.site-header{position:sticky;top:0;z-index:20;background:#14161a;border-bottom:1px solid #262930}
+.hwrap{max-width:1180px;margin:0 auto;padding:8px 1rem;display:flex;align-items:center;gap:4px 16px}
+.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:#ecebe6;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:.04em}
+.brand .icon{width:22px;height:22px;flex:none}
+.brand:hover{color:#d97757}
+.brand:focus-visible,.site-header nav a:focus-visible,a:focus-visible{outline:2px solid #d97757;outline-offset:2px;border-radius:4px}
+.site-header nav{margin-left:auto;display:flex;gap:2px}
+.site-header nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 10px;color:#a7a59e;text-decoration:none;font-size:14px;white-space:nowrap}
+.site-header nav a:hover{color:#d97757;text-decoration:underline;text-underline-offset:4px}
+.site-header nav a[aria-current=page]{color:#d97757;font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.doc{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem;display:flex;flex-direction:column;gap:28px}
+h1{margin:0 0 10px;font-size:28px;line-height:1.3}
+h2{margin:0 0 8px;font-size:18px}
+p{margin:0 0 10px;font-size:15px;line-height:1.8;color:#c9c7c0}
+.lead{font-size:16px;color:#ecebe6}
+.muted{font-size:13px;color:#8f8d87}
+a{color:#d97757}a:hover{color:#eb9474}
+.tbl{overflow-x:auto;margin:8px 0 10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font-weight:600;color:#8f8d87;text-align:right;padding:7px 8px;border-bottom:1px solid #262930}
+td{padding:8px;border-bottom:1px solid #1f2227;text-align:right;color:#c9c7c0}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+td.win{color:#ecebe6;font-weight:600}
+ul{margin:0;padding-left:1.2em;color:#c9c7c0;font-size:14px;line-height:1.8}
+.site-footer{border-top:1px solid #262930}
+.site-footer .foot{max-width:760px;margin:0 auto;padding:20px 1rem 40px}
+.site-footer p{margin:0 0 6px;font-size:12px;color:#8f8d87;line-height:1.7}
+.site-footer a{color:#a7a59e}
+@media (max-width:480px){.hwrap{padding:4px 12px 0;gap:0;flex-wrap:wrap}.brand{font-size:14px;gap:6px;min-height:36px}
+.site-header nav{margin-left:0;width:100%;justify-content:space-between}.site-header nav a{padding:0 4px}
+table{font-size:12px}th,td{padding:6px 4px}h1{font-size:24px}}
+"""
+
+
+def _x(m):
+    return f"{m:.1f} 倍" if m < 100 else f"{m:.0f} 倍"
+
+
+def backtest_page(series_map, ndc, w, built, nav_links, has_ndc):
+    """回測頁：作者的長期原則＋年線進出、藍燈紅燈兩個回測。數字每次建站用最新資料重算。"""
+    ma_rows, as_of = [], ""
+    for code in bt.MA_MARKETS:
+        s = series_map.get(code) or []
+        r = bt.ma_backtest(s)
+        if not r:
+            continue
+        as_of = max(as_of, r["end"])
+        bh, st = r["bh"], r["st"]
+        win_bh = bh["mult"] >= st["mult"]
+        fee = ""
+        if code == "taiex":   # 台股的交易成本有官方費率，另外算一次扣成本後
+            rf = bt.ma_backtest(s, fee_buy=bt.TW_FEE_BUY, fee_sell=bt.TW_FEE_SELL)
+            fee = (f'<tr><td class="muted">　扣台股交易成本後</td><td></td><td></td>'
+                   f'<td>{_x(rf["st"]["mult"])}（{rf["st"]["cagr"]:.1f}%）</td><td></td><td></td></tr>')
+        ma_rows.append(
+            f'<tr><td>{BT_NAMES[code]}<br><span class="muted">{r["start"][:4]}–{r["end"][:4]}</span></td>'
+            f'<td class="{"win" if win_bh else ""}">{_x(bh["mult"])}（{bh["cagr"]:.1f}%）</td><td>{bh["mdd"]:.0f}%</td>'
+            f'<td class="{"" if win_bh else "win"}">{_x(st["mult"])}（{st["cagr"]:.1f}%）</td><td>{st["mdd"]:.0f}%</td>'
+            f'<td>{r["switches"]}</td></tr>{fee}')
+    ndc_html = ""
+    if has_ndc and series_map.get("taiex"):
+        lights = [(m, l, sc) for m, sc, l, *_ in ndc if sc is not None]
+        r = bt.ndc_backtest(series_map["taiex"], lights)
+        trades = "".join(
+            f'<tr><td>{t["buy_month"]} 藍</td><td>{t["buy_date"]}</td><td>{t["buy"]:,.0f}</td>'
+            f'<td>{(t["sell_month"] + " 紅") if t["sell_month"] else "—"}</td><td>{t["sell_date"] or "還抱著"}</td>'
+            f'<td>{t["sell"]:,.0f}</td><td>{t["ret"]:+.1f}%</td></tr>' for t in r["trades"])
+        ll = r["last_light"]
+        bh, st = r["bh"], r["st"]
+        win_bh = bh["mult"] >= st["mult"]
+        done = sum(1 for t in r["trades"] if t["sell_month"])
+        ndc_html = f"""<section>
+  <h2>景氣燈號：藍燈買、紅燈賣</h2>
+  <p>國發會景氣燈號出現藍燈（9–16 分）就全部買進加權指數，出現紅燈（38–45 分）就全部賣出，再等下一次藍燈；一開始是現金。燈號約在下個月 27 日才公布，所以 M 月的燈號用 M+2 月第一個交易日的收盤價進出。</p>
+  <div class="tbl"><table>
+    <thead><tr><th scope="col">{r["start"][:4]}–{r["end"][:4]}</th><th scope="col">倍數（年化）</th><th scope="col">最大跌幅</th><th scope="col">在市場裡</th></tr></thead>
+    <tbody>
+      <tr><td>長期持有</td><td class="{"win" if win_bh else ""}">{_x(bh["mult"])}（{bh["cagr"]:.1f}%）</td><td>{bh["mdd"]:.0f}%</td><td>100%</td></tr>
+      <tr><td>藍燈買、紅燈賣</td><td class="{"" if win_bh else "win"}">{_x(st["mult"])}（{st["cagr"]:.1f}%）</td><td>{st["mdd"]:.0f}%</td><td>{r["in_mkt"]:.0f}%</td></tr>
+    </tbody>
+  </table></div>
+  <p>{r["years"]:.0f} 年裡只有 {done} 次完整的藍燈買、紅燈賣。燈號反映的是已經發生的景氣，比股市慢：2000 年和 2008 年兩次大跌，這個做法都是抱著股票跌下去，最大跌幅沒有比較小。</p>
+  <div class="tbl"><table>
+    <thead><tr><th scope="col">買進燈號</th><th scope="col">買進日</th><th scope="col">點數</th><th scope="col">賣出燈號</th><th scope="col">賣出日</th><th scope="col">點數</th><th scope="col">漲跌</th></tr></thead>
+    <tbody>{trades}</tbody>
+  </table></div>
+  <p class="muted">燈號資料到 {ll[0]}（{ll[1]}燈 {ll[2]} 分）。</p>
+</section>"""
+
+    body = f"""<div class="doc">
+<section>
+  <h1>長期來看</h1>
+  <p class="lead">這個小工具的出發點：長期持有台灣、美國這樣長期向上的整體市場，加上不被斷頭的資金管理（不借錢、不加槓桿、持股比例放在自己睡得著的程度）。</p>
+  <p>網站上的均線、本益比、景氣燈號，是用來看清現在的環境、穩住心情的儀表板，不是進出訊號。下面兩個回測，是為什麼這樣想。這裡沒有分析任何單一個股；這是作者自己的做法，不是給你的投資建議。</p>
+</section>
+<section>
+  <h2>年線進出 vs 長期持有</h2>
+  <p>年線進出：收盤在年線（240 個交易日平均）上方就持有，跌破就全部賣出，站回去再買；當天收盤判斷、隔天收盤才動作。長期持有從同一天買進，之後不動。</p>
+  <div class="tbl"><table>
+    <thead><tr><th scope="col">市場</th><th scope="col">長期持有<br>倍數（年化）</th><th scope="col">最大<br>跌幅</th><th scope="col">年線進出<br>倍數（年化）</th><th scope="col">最大<br>跌幅</th><th scope="col">進出<br>次數</th></tr></thead>
+    <tbody>{"".join(ma_rows)}</tbody>
+  </table></div>
+  <p>看得出來的事：</p>
+  <ul>
+    <li>年線進出最大的好處是跌得比較淺，大盤的最大跌幅少了三分之一以上。</li>
+    <li>代價是幾十年要進出一兩百次以上，每一次都要照規則執行，而且常常剛賣就漲回來。</li>
+    <li>報酬：歷史最長的標普 500 是長期持有大幅領先。加權指數不算成本時差不多，扣掉台股的手續費和證交稅後，長期持有明顯領先。那斯達克 100 的資料從 2000 年網路泡沫最高點附近開始，長期持有一開始就跌了八成多，這個起點對長期持有特別不利。</li>
+    <li>這裡都沒算股息。長期持有一直在市場裡，領到的股息比較多（台股一年約 3～4%），實際差距比表上更偏向長期持有。</li>
+  </ul>
+</section>
+{ndc_html}
+<section>
+  <h2>方法和限制</h2>
+  <ul>
+    <li>只用每天收盤價（價格指數，不含股息），賣出後的現金沒算利息。</li>
+    <li>交易成本只對加權指數另外算（手續費 0.1425%、證交稅 0.3%）；美股沒算。</li>
+    <li>年化報酬＝期末倍數換算成每年平均。最大跌幅＝資產從前高跌到谷底最深的一次。</li>
+    <li>這些是過去的紀錄，不代表之後會一樣。資料截至 {as_of}，每次網站更新都用最新資料重算。</li>
+  </ul>
+</section>
+</div>"""
+    nav = "".join(f'<a href="{h}"{" aria-current=page" if cur else ""}>{t}</a>' for h, t, cur in nav_links)
+    page = f"""<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>長期來看（回測）· market_weather</title>
+<style>{BT_CSS}.brand .icon{{color:{WEATHER[w]['color']}}}</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="hwrap">
+    <a class="brand" href="index.html">{ICONS[w]}<span class="sr">今天{w}，回首頁，</span>market_weather</a>
+    <nav aria-label="網站導覽">{nav}</nav>
+  </div>
+</header>
+<main>
+{body}
+</main>
+<footer class="site-footer">
+  <div class="foot">
+    <p>網頁更新於 {built}（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p><a href="index.html">回到今天的天氣</a> · <a href="History/index.html">歷史版本</a></p>
+    <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
+  </div>
+</footer>
+</body>
+</html>
+"""
+    (OUT.parent / "backtest.html").write_text(page, encoding="utf-8", newline="\n")
+    return as_of
 
 
 # ---------- 組頁面 ----------
@@ -890,17 +1166,28 @@ def build():
     <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="{spark}" stroke="{color}" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
   </summary>
   {chart_block(code, kind)}
+  {facts_block(code, kind, s)}
 </details>""")
             write_series(code, s)
             if PE_FOR.get(code) and load(PE_FOR[code]):   # 本益比也寫一份，點「本益比」時才載入
-                write_series(PE_FOR[code], load(PE_FOR[code]))
-        groups_html.append(f'<section class="group"><h2>{group}</h2>{"".join(rows_html)}</section>')
+                pe_code = PE_FOR[code]
+                extra = {"monthly": 1} if pe_code == "spx_pe" else {}   # 每月資料
+                est = first_estimate(pe_code)
+                if est:   # 記下從哪天起是估計值，圖上才能標「估計」
+                    extra["est"] = (dt.date.fromisoformat(est) - EPOCH).days
+                write_series(pe_code, load(pe_code), extra)
+        anchor = ' id="list"' if group == "台股" else ""   # 頁首「指標」跳到第一組
+        groups_html.append(f'<section class="group"{anchor}><h2>{group}</h2>{"".join(rows_html)}</section>')
     ndc = load_ndc()
-    groups_html.insert(0, f'<section class="group"><h2>比較</h2>{compare_block(bool(ndc))}</section>')
+    groups_html.insert(0, f'<section class="group" id="compare"><h2>比較</h2>{compare_block(bool(ndc))}</section>')
     if ndc:   # 國發會景氣燈號（每月）
         write_ndc_series(ndc)
-        groups_html.append(f'<section class="group"><h2>景氣（每月）</h2>{ndc_row(ndc)}</section>')
+        groups_html.append(f'<section class="group" id="ndc"><h2>景氣（每月）</h2>{ndc_row(ndc)}</section>')
 
+    nav = [("today", "今天"), ("compare", "比較"), ("list", "指標")] + ([("ndc", "景氣")] if ndc else [])
+    nav_html = "".join(f'<a href="#{a}">{t}</a>' for a, t in nav) + '<a href="backtest.html">回測</a>'
+    backtest_page(series_map, ndc, w, built,
+                  [(f"index.html#{a}", t, False) for a, t in nav] + [("backtest.html", "回測", True)], bool(ndc))
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
     ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
     cmp_meta = {code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code == "us10y" else ""}
@@ -918,10 +1205,23 @@ def build():
 <title>{w} · market_weather {md(today['date'])}</title>
 <style>
 *{{box-sizing:border-box}}
+html{{scroll-padding-top:64px}}
+@media (max-width:480px){{html{{scroll-padding-top:92px}}}}
 body{{margin:0;background:#14161a;color:#ecebe6;font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;-webkit-text-size-adjust:100%}}
 .wrap{{max-width:1180px;margin:0 auto;padding:1.5rem 1rem 3rem;display:flex;flex-direction:column;gap:24px}}
-.top{{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#a7a59e}}
-.top b{{font-weight:600;letter-spacing:.04em}}
+.site-header{{position:sticky;top:0;z-index:20;background:#14161a;border-bottom:1px solid #262930}}
+.hwrap{{max-width:1180px;margin:0 auto;padding:8px 1rem;display:flex;align-items:center;gap:4px 16px}}
+.brand{{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:#ecebe6;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:.04em}}
+.brand .icon{{width:22px;height:22px;flex:none;color:{WEATHER[w]['color']}}}
+.brand:hover{{color:#d97757}}
+.brand:focus-visible,.site-header nav a:focus-visible{{outline:2px solid #d97757;outline-offset:2px;border-radius:4px}}
+.site-header nav{{margin-left:auto;display:flex;gap:2px}}
+.site-header nav a{{display:inline-flex;align-items:center;min-height:40px;padding:0 10px;color:#a7a59e;text-decoration:none;font-size:14px;white-space:nowrap}}
+.site-header nav a:hover{{color:#d97757;text-decoration:underline;text-underline-offset:4px}}
+.sr{{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
+.site-footer{{border-top:1px solid #262930}}
+.site-footer .foot{{max-width:1180px;margin:0 auto;padding:20px 1rem 40px;display:flex;flex-direction:column;gap:6px}}
+.site-footer p{{margin:0}}
 .cols{{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}}
 aside{{flex:1 1 300px;max-width:400px;display:flex;flex-direction:column;gap:22px;min-width:0}}
 main{{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px}}
@@ -971,6 +1271,22 @@ details[open] summary.row{{background:#1c1f24}}
 .legend i.sw{{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}}
 .chg .sub{{display:block;font-size:12px;color:#8f8d87}}
 .ndc{{margin:8px 6px 16px}}
+.facts{{margin:0 6px 20px;display:flex;flex-direction:column;gap:16px}}
+.fact h3{{margin:0 0 6px;font-size:13px;font-weight:600;color:#a7a59e}}
+.fact p{{margin:0;font-size:14px;line-height:1.7;color:#c9c7c0}}
+.fact b{{font-weight:600}}
+.range{{display:grid;grid-template-columns:1fr 1fr;row-gap:6px;font-size:14px;font-variant-numeric:tabular-nums}}
+.range .bar{{grid-column:1/3;position:relative;height:6px;border-radius:3px;background:#2c2f36;margin:6px 0}}
+.range .bar i{{position:absolute;top:-5px;width:4px;height:16px;margin-left:-2px;border-radius:2px;background:#ecebe6}}
+.range small{{display:block;font-size:12px;color:#8f8d87}}
+.range .hi{{text-align:right}}
+.tbl{{overflow-x:auto;margin-top:8px}}
+.tbl table{{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}}
+.tbl th{{font-weight:600;color:#8f8d87;text-align:right;padding:6px 8px;border-bottom:1px solid #262930}}
+.tbl th:first-child,.tbl td:first-child{{text-align:left;padding-left:0}}
+.tbl td{{padding:7px 8px;border-bottom:1px solid #1f2227;color:#c9c7c0}}
+.tbl td.num{{text-align:right}}
+.tbl tr.now td{{color:#ecebe6;font-weight:600}}
 .cmp{{border-top:1px solid #262930;padding:10px 6px 8px}}
 .cmp .hint{{margin:0 0 8px;font-size:13px;color:#a7a59e}}
 .cmp .open{{font:inherit;font-size:14px;min-height:40px;padding:0 16px;border-radius:8px;border:1px solid #d97757;background:transparent;color:#ecebe6;cursor:pointer}}
@@ -1009,15 +1325,26 @@ details[open] summary.row{{background:#1c1f24}}
   .ranges button{{min-width:0;padding:0;font-size:12px;min-height:34px}}
   .hero .word{{font-size:64px}}
   .hero .icon{{width:64px;height:64px}}
+  .hwrap{{padding:4px 12px 0;gap:0;flex-wrap:wrap}}
+  .tbl table{{font-size:12px}}
+  .tbl th,.tbl td{{padding:6px 4px}}
+  .brand{{font-size:14px;gap:6px;min-height:36px}}
+  .site-header nav{{margin-left:0;width:100%;justify-content:space-between}}
+  .site-header nav a{{padding:0 4px}}
 }}
 </style>
 </head>
-<body>
+<body id="top">
+<header class="site-header">
+  <div class="hwrap">
+    <a class="brand" href="#top">{ICONS[w]}<span class="sr">今天{w}，</span>market_weather</a>
+    <nav aria-label="跳到這一頁的區塊">{nav_html}</nav>
+  </div>
+</header>
 <div class="wrap">
-  <div class="top"><b>market_weather</b><span>更新於 {built}</span></div>
   {missing_html}
   <div class="cols">
-    <aside>
+    <aside id="today">
       <div>
         <div class="hero">{ICONS[w]}<span class="word">{w}</span></div>
       </div>
@@ -1033,18 +1360,22 @@ details[open] summary.row{{background:#1c1f24}}
     </aside>
     <main>
       {"".join(groups_html)}
-      <div class="foot">
-        <p style="margin:0">點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：{SOURCES_TEXT}。</p>
-        <details>
-          <summary>晴雨怎麼判斷（草案）</summary>
-          <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
-        </details>
-        <p style="margin:6px 0 0"><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
-        <p style="margin:6px 0 0">只整理公開行情，不是投資建議。</p>
-      </div>
     </main>
   </div>
 </div>
+<footer class="site-footer">
+  <div class="foot">
+    <p>點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：{SOURCES_TEXT}。</p>
+    <details>
+      <summary>晴雨怎麼判斷（草案）</summary>
+      <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
+    </details>
+    <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
+    <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
+    <p>網頁更新於 {built}（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
+  </div>
+</footer>
 <noscript><p class="warn" style="text-align:center">走勢圖需要開啟 JavaScript。</p></noscript>
 <script>
 const UP="{UP}", DN="{DN}", NEUTRAL="#c9c7c0";

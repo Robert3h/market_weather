@@ -11,6 +11,7 @@ import argparse
 import datetime as dt
 import html
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -104,12 +105,19 @@ def main():
         raise SystemExit(f"已經有 {dest.relative_to(ROOT)}，換一個 --name")
     page, series = read_git(args.git, args.path) if args.git else read_current()
     banner = BANNER.format(date=args.date, title=html.escape(args.title))
-    if "<body>" not in page:
-        raise SystemExit("網頁裡找不到 <body>，無法加上「歷史版本」標示")
-    page = page.replace("<body>", "<body>\n" + banner, 1)
+    def add_banner(text):
+        # <body> 可能帶屬性（2026-11-23 起首頁是 <body id="top">），找第一個 <body…> 標籤後面插入
+        m = re.search(r"<body[^>]*>", text)
+        if not m:
+            raise SystemExit("網頁裡找不到 <body>，無法加上「歷史版本」標示")
+        return text[:m.end()] + "\n" + banner + text[m.end():]
 
+    page = add_banner(page)
     (dest / "series").mkdir(parents=True)
     (dest / "index.html").write_text(page, encoding="utf-8")
+    extra = SITE / "backtest.html"   # 2026-11-23 起多一頁「回測」：存目前版本時一起存，舊版裡的連結才點得到
+    if not args.git and extra.exists():
+        (dest / "backtest.html").write_text(add_banner(extra.read_text(encoding="utf-8")), encoding="utf-8")
     for name, data in series.items():
         (dest / "series" / name).write_bytes(data)
     versions = [v for v in load_manifest() if v["folder"] != folder]

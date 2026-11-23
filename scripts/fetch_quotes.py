@@ -43,7 +43,9 @@ INDICATORS = {
     "tsm":    ("台積電 ADR (TSM)", "yahoo", "TSM"),
     "spx":    ("標普 500", "yahoo", "^GSPC"),
     "qqq":    ("QQQ", "yahoo", "QQQ"),
-    "smh":    ("SMH 半導體", "yahoo", "SMH"),
+    "smh":    ("SMH 半導體 ETF", "yahoo", "SMH"),
+    "sox":    ("費城半導體指數 (SOX)", "yahoo", "^SOX"),   # 2026-11-23 加：觀察名單
+    "nvda":   ("輝達 NVDA", "yahoo", "NVDA"),              # 2026-11-23 加：觀察名單
     "vix":    ("VIX 恐慌指數", "yahoo", "^VIX"),
     "us10y":  ("美國 10 年期公債殖利率", "yahoo", "^TNX"),
     "usdtwd": ("美元兌台幣", "yahoo", "TWD=X"),
@@ -237,6 +239,34 @@ def save_ndc(rows):
         w.writerows(rows)
 
 
+# 標普 500 本益比（multpl.com，第三方，每月一筆、1871 年起）。用過去 12 個月盈餘算；
+# 最近幾個月的盈餘還沒公布完，是用預估盈餘算的「估計值」（表上標 †），之後會被修正，所以每次整份覆蓋。
+MULTPL_URL = "https://www.multpl.com/s-p-500-pe-ratio/table/by-month"
+
+
+def fetch_multpl():
+    """回傳 [(日期, 本益比, 是否估計)]，日期舊到新。最新一列是當月到目前為止（例如 11/20）。"""
+    page = get(MULTPL_URL).decode("utf-8")
+    out = []
+    for d, cell in re.findall(r"<tr[^>]*>\s*<td>([^<]+)</td>\s*<td>(.*?)</td>", page, re.S):
+        v = re.search(r"\d+(?:\.\d+)?\s*$", re.sub(r"<[^>]+>", " ", cell).strip())
+        if not v:
+            continue
+        date = dt.datetime.strptime(d.strip(), "%b %d, %Y").date().isoformat()
+        out.append((date, float(v.group()), "Estimate" in cell))
+    if len(out) < 1000:
+        raise ValueError(f"multpl 表格只有 {len(out)} 列，格式可能改了")
+    return sorted(out)
+
+
+def save_multpl(rows):
+    with (DATA_DIR / "spx_pe.csv").open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")   # 統一 LF，和其他 CSV 一樣
+        w.writerow(["date", "close", "source"])
+        for d, v, est in rows:
+            w.writerow([d, f"{v:.2f}", "multpl 估計" if est else "multpl"])
+
+
 def save_csv(code, rows, source):
     path = DATA_DIR / f"{code}.csv"
     old = {}
@@ -329,6 +359,18 @@ def main():
         except Exception as e:
             log(args.where, code, "twse_pe", "FAIL", "", 0, repr(e)[:200])
             print(f"FAIL {name:<18} {e!r}"[:200])
+
+    if not args.only or "spx_pe" in args.only:   # 標普 500 本益比（multpl.com，每月）
+        try:
+            rows = fetch_multpl()
+            save_multpl(rows)
+            est = sum(1 for r in rows if r[2])
+            log(args.where, "spx_pe", "multpl.com", "OK", rows[-1][0], len(rows), f"最近 {est} 筆是估計值")
+            print(f"OK   {'標普 500 本益比':<18} 最新 {rows[-1][0]}  {rows[-1][1]}（{'估計' if rows[-1][2] else '實際'}）  （共 {len(rows)} 個月，最近 {est} 筆估計）")
+            ok += 1
+        except Exception as e:
+            log(args.where, "spx_pe", "multpl.com", "FAIL", "", 0, repr(e)[:200])
+            print(f"FAIL {'標普 500 本益比':<18} {e!r}"[:200])
 
     if not args.only or "ndc_signal" in args.only:   # 國發會景氣燈號（每月）
         try:

@@ -707,6 +707,23 @@ def drawdowns(s):
     return peak, eps
 
 
+def deepest_inside(s, t_, r_):
+    """谷底之後、回到前高之前，又從某個高點跌了多深（例：加權 2000 年那次，中間還有 2007-10 → 2008-11）。
+    這種下跌沒有回到「前高」，drawdowns() 不會另外算一次，表格上看不到，所以另外寫一行。"""
+    sub = s[t_:(r_ if r_ is not None else len(s))]
+    best, hi = None, 0
+    for i, (_, v) in enumerate(sub):
+        if v > sub[hi][1]:
+            hi = i
+        d = v / sub[hi][1] - 1
+        if best is None or d < best[0]:
+            best = (d, hi, i)
+    if best and best[0] * 100 <= BEAR:
+        d, h, lo = best
+        return sub[h], sub[lo], d * 100
+    return None
+
+
 def facts_block(code, kind, s):
     """展開後、走勢圖下面的固定數字。價格類：距最高點、52 週高低、過去大跌；點數類只有 52 週高低。"""
     if len(s) < 2:
@@ -755,12 +772,24 @@ def facts_block(code, kind, s):
             m = rec[len(rec) // 2] if len(rec) % 2 else (rec[len(rec) // 2 - 1] + rec[len(rec) // 2]) / 2
             med = f"已回到前高的 {len(done)} 次，從谷底回到前高的時間中位數約 {m:.0f} 個月。"
         rows = []
+        ep = lambda d: (dt.date.fromisoformat(d) - EPOCH).days
         for p_, t_, r_ in reversed(big[-FACT_ROWS:]):
             depth = (s[t_][1] / s[p_][1] - 1) * 100
             back = span_text(s[t_][0], s[r_][0]) if r_ is not None else "還沒回到"
             cls = ' class="now"' if r_ is None else ""
-            rows.append(f'<tr{cls}><td>{s[p_][0][:7]} → {s[t_][0][:7]}</td><td class="num" style="color:{DN}">−{abs(depth):.1f}%</td>'
+            end = s[r_][0] if r_ is not None else last_d
+            # 2026-11-23：點日期，走勢圖切到「最長」，從高點到回到前高塗一段底色
+            under = span_text(s[p_][0], end)
+            label = f"{'水面下' if r_ is not None else '從高點到現在'} {under}"
+            btn = (f'<button type="button" class="ddbtn" aria-pressed="false" data-a="{ep(s[p_][0])}" data-b="{ep(end)}" '
+                   f'data-label="{label}">{s[p_][0][:7]} → {s[t_][0][:7]}</button>')
+            rows.append(f'<tr{cls}><td>{btn}</td><td class="num" style="color:{DN}">−{abs(depth):.1f}%</td>'
                         f'<td class="num">{span_text(s[p_][0], s[t_][0])}</td><td class="num">{back}</td></tr>')
+            inner = deepest_inside(s, t_, r_) if r_ is None or (dt.date.fromisoformat(end) - dt.date.fromisoformat(s[t_][0])).days > 3 * 365 else None
+            if inner:
+                (hd, hv), (ld, lv), d = inner
+                rows.append(f'<tr class="inside"><td colspan="4">這段期間裡，還從 {hd}（{fmt_value(code, hv)}）跌到 {ld}（{fmt_value(code, lv)}），'
+                            f'<span style="color:{DN}">−{abs(d):.1f}%</span>；因為沒有回到前高，不另外算一次。</td></tr>')
         more = f"（只列最近 {FACT_ROWS} 次）" if len(big) > FACT_ROWS else ""
         parts.append(f"""<div class="fact">
     <h3>過去跌超過 {abs(BEAR):.0f}% 的幾次</h3>
@@ -934,6 +963,18 @@ function render(box) {
     el("text", {x: pl + 2, y, style: `fill:${col};paint-order:stroke;stroke:#14161a;stroke-width:4px;stroke-linejoin:round`}, svg).textContent = t;
   el("text", {x: pl, y: H - 6}, svg).textContent = iso(days[i0]);
   el("text", {x: W - pr, y: H - 6, "text-anchor": "end"}, svg).textContent = iso(days[last]);
+  // 「過去跌超過 20%」表格點了哪一次：從高點到回到前高塗一段底色（只在指數／股價模式）
+  if (box._band && !pe) {
+    const seek = v => { let a = i0, b = last; while (a < b) { const m = (a + b) >> 1; if (days[m] < v) a = m + 1; else b = m; } return a; };
+    const a = seek(box._band.a), b = seek(box._band.b);
+    if (b > a) {
+      el("rect", {x: X(a), y: pt, width: Math.max(X(b) - X(a), 1), height: H - pt - pb, fill: "#d97757", "fill-opacity": 0.13}, svg);
+      for (const k of [a, b]) el("line", {x1: X(k), x2: X(k), y1: pt, y2: H - pb, stroke: "#d97757", "stroke-dasharray": "2 3"}, svg);
+      const lx = X(a) + 6, room = W - pr - lx;
+      el("text", {x: room > 90 ? lx : X(b) - 6, y: pt + 14, "text-anchor": room > 90 ? "start" : "end",
+        style: "fill:#d97757;font-weight:600;paint-order:stroke;stroke:#14161a;stroke-width:4px;stroke-linejoin:round"}, svg).textContent = box._band.label;
+    }
+  }
   // 政策事件：期間內、這個市場的事件，在圖底部畫小三角形（非交易日的事件，標在下一個交易日）
   const evs = EVENTS.filter(e => e[0] >= days[i0] && e[0] <= days[last] && (e[1] === "全部" || e[1] === box.dataset.mk))
     .map(e => { let a = i0, b = last; while (a < b) { const m = (a + b) >> 1; if (days[m] < e[0]) a = m + 1; else b = m; } return {i: a, x: X(a), e}; });
@@ -1014,6 +1055,15 @@ document.querySelectorAll(".chart").forEach(box => {
     } else render(box);
   }));
 });
+document.querySelectorAll(".ddbtn").forEach(btn => btn.addEventListener("click", () => {
+  const det = btn.closest("details"), box = det.querySelector(".chart"), on = btn.getAttribute("aria-pressed") !== "true";
+  det.querySelectorAll(".ddbtn").forEach(b => b.setAttribute("aria-pressed", "false"));
+  box._band = on ? {a: +btn.dataset.a, b: +btn.dataset.b, label: btn.dataset.label} : null;
+  btn.setAttribute("aria-pressed", String(on));
+  if (box._mode === "pe") box.querySelector('.modes button[data-m="price"]').click();   // 本益比模式不畫，先切回指數
+  if (on) box.querySelector('.ranges button[data-r="MAX"]').click(); else render(box);
+  if (on) box.scrollIntoView({block: "nearest"});
+}));
 let resizeTimer;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
@@ -1235,7 +1285,7 @@ GUIDE_JS = r"""
     const unlock=()=>{ if(screen.orientation && screen.orientation.unlock) try{ screen.orientation.unlock(); }catch(e){} };
     fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen().then(lockLand)).then(()=>setTimeout(()=>go(i),200)); });
     // 兩組投影片都會收到 fullscreenchange：只處理自己的。之前 4:5 那組在 16:9 進全螢幕時誤以為「離開了」而解除橫向鎖定，
-    // 手機轉一下又轉回來（Robert 2026-11-23 回報）。所以記住「自己有沒有在全螢幕」，自己離開時才解除。
+    // 手機轉一下又轉回來（2026-11-23 用 Android 手機實測發現）。所以記住「自己有沒有在全螢幕」，自己離開時才解除。
     document.addEventListener('fullscreenchange',()=>{
       const on=document.fullscreenElement===d;
       if(on){ d._fs=true; fs.textContent='離開全螢幕'; strip.focus(); }
@@ -1442,7 +1492,7 @@ OPEN_HASH_JS = r"""
 """
 
 
-# ---------- 深色（預設）／淺色主題（2026-11-23，Robert：「希望也有跟 LSA 網站一樣的深色(預設)/淺色模式」）----------
+# ---------- 深色（預設）／淺色主題（2026-11-23）----------
 # 配色照 網站配色圖卡/網站配色圖卡_20261020.md（LSA 網站同一套）：淺色底白、主要文字 #1B1C1E、橘 #B4532E。
 # 做法：程式裡照舊寫深色的色碼；寫出每一頁之前，themed() 把這些色碼換成 CSS 變數，深淺兩組值放在 :root。
 #   切換時顏色直接跟著變，走勢圖不用重畫。SVG 的 fill／stroke 屬性不吃變數，所以畫圖的 el() 和靜態小走勢圖改用 style。
@@ -1679,6 +1729,11 @@ details[open] summary.row{{background:#1c1f24}}
 .legend i.sw{{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}}
 .chg .sub{{display:block;font-size:12px;color:#8f8d87}}
 .ndc{{margin:8px 6px 16px}}
+.ddbtn{{font:inherit;font-size:inherit;background:none;border:0;padding:4px 0;min-height:32px;color:#d97757;cursor:pointer;text-decoration:underline dotted;text-underline-offset:4px;white-space:nowrap}}
+.ddbtn:hover{{color:#eb9474}}
+.ddbtn[aria-pressed=true]{{font-weight:700;text-decoration-style:solid}}
+.ddbtn:focus-visible{{outline:2px solid #d97757;outline-offset:2px}}
+tr.inside td{{white-space:normal;font-size:12px;line-height:1.6;color:#8f8d87;padding-top:0}}
 .facts{{margin:0 6px 20px;display:flex;flex-direction:column;gap:16px}}
 .fact h3{{margin:0 0 6px;font-size:13px;font-weight:600;color:#a7a59e}}
 .fact p{{margin:0;font-size:14px;line-height:1.7;color:#c9c7c0}}

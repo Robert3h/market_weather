@@ -1,8 +1,8 @@
 """抓 9 個公開行情指標的每日收盤價，存成 data/<代號>.csv。
 
-只用 Python 內建功能（公司網路擋 pip）。執行方式：
-    python -I scripts/fetch_quotes.py --where 家裡
---where 是「在哪個網路跑的」，會記進 data/fetch_log.csv，方便比較公司／家裡／GitHub Actions。
+只用 Python 內建功能（不安裝任何套件）。執行方式：
+    python -I scripts/fetch_quotes.py
+--where 是「在哪裡跑的」：本機（預設）或 GitHub Actions，會記進 data/fetch_log.csv。不記實際地點。
 
 每個 CSV 欄位：date,close,source
 抓不到的指標不會覆蓋舊檔，只在 fetch_log 記一筆 FAIL。
@@ -392,12 +392,13 @@ def log(where, code, source, status, last_date, rows, note=""):
         w = csv.writer(f, lineterminator="\n")   # 統一 LF：Linux（GitHub）和 Windows 寫出來一樣
         if new:
             w.writerow(["run_at", "where", "indicator", "source", "status", "last_date", "rows", "note"])
+        where = where if where == "GitHub Actions" else "本機"   # 不記實際地點
         w.writerow([dt.datetime.now(TPE).strftime("%Y-%m-%d %H:%M:%S"), where, code, source, status, last_date, rows, note])
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--where", default="未標示", help="在哪個網路跑：公司／家裡／GitHub Actions")
+    ap.add_argument("--where", default="本機", help="在哪裡跑：本機（預設）或 GitHub Actions")
     ap.add_argument("--only", nargs="*", help="只抓這幾個代號（測試用）")
     ap.add_argument("--full", action="store_true", help="重抓全部歷史（第一次會自動做）")
     args = ap.parse_args()

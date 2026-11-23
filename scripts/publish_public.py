@@ -11,6 +11,7 @@
 第一次在某台電腦執行時，會自動設定好 origin 和「只准推 public」的保險（pre-push hook）。
 """
 import argparse
+import csv
 import datetime as dt
 import os
 import subprocess
@@ -56,6 +57,21 @@ def setup():
         hook.write_text(HOOK, encoding="utf-8", newline="\n")
 
 
+def clean_fetch_log():
+    """fetch_log.csv 的「在哪裡跑」只留「本機」和「GitHub Actions」，不記實際地點（2026-11-23）。
+    GitHub 上的舊紀錄同步回來時也在這裡整理，公開出去的版本才不會又出現。"""
+    f = ROOT / "data" / "fetch_log.csv"
+    if not f.exists():
+        return
+    rows = list(csv.reader(f.open(encoding="utf-8", newline="")))
+    k = rows[0].index("where")
+    for r in rows[1:]:
+        if len(r) > k and r[k] != "GitHub Actions":
+            r[k] = "本機"
+    with f.open("w", encoding="utf-8", newline="") as fh:
+        csv.writer(fh, lineterminator=chr(10)).writerows(rows)
+
+
 def sync_from_github():
     """data/、網頁和 series/ 每天由 GitHub Actions 更新，推之前先拿回本機 master，免得本機舊資料把它蓋掉。
     本機自己跑 fetch_quotes 產生、還沒 commit 的資料會被 GitHub 版取代（GitHub 版才是每天累積的正本）。
@@ -64,6 +80,7 @@ def sync_from_github():
     if not paths:
         return
     git("checkout", "origin/main", "--", *paths)
+    clean_fetch_log()
     git("add", "--renormalize", "--", *paths)   # 重新加入，讓換行符號照本機設定統一
     if git("diff", "--cached", "--name-only", "--", *paths):
         git("commit", "-m", "同步 GitHub 上的每日資料")

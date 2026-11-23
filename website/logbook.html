@@ -272,7 +272,7 @@ section h2 .log{margin-right:6px}
 </main>
 <footer class="site-footer">
   <div class="foot">
-    <p>網頁更新於 2026-11-23 15:06（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p>網頁更新於 2026-11-23 16:05（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
     <p><a href="index.html">回到今天的天氣</a> · <a href="guide.html">使用教學</a> · <a href="logbook.html">維修日誌</a> · <a href="History/index.html">歷史版本</a></p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
   </div>
@@ -302,7 +302,7 @@ section h2 .log{margin-right:6px}
     const unlock=()=>{ if(screen.orientation && screen.orientation.unlock) try{ screen.orientation.unlock(); }catch(e){} };
     fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen().then(lockLand)).then(()=>setTimeout(()=>go(i),200)); });
     // 兩組投影片都會收到 fullscreenchange：只處理自己的。之前 4:5 那組在 16:9 進全螢幕時誤以為「離開了」而解除橫向鎖定，
-    // 手機轉一下又轉回來（Robert 2026-11-23 回報）。所以記住「自己有沒有在全螢幕」，自己離開時才解除。
+    // 手機轉一下又轉回來（2026-11-23 用 Android 手機實測發現）。所以記住「自己有沒有在全螢幕」，自己離開時才解除。
     document.addEventListener('fullscreenchange',()=>{
       const on=document.fullscreenElement===d;
       if(on){ d._fs=true; fs.textContent='離開全螢幕'; strip.focus(); }

@@ -1113,6 +1113,122 @@ def backtest_page(series_map, ndc, w, built, nav_links, has_ndc):
     return as_of
 
 
+# ---------- 手冊頁（第 7 輪，2026-11-23）：website/guide.html ----------
+# 圖由 工具/publish_guide.py 放進 website/guide/<比例>/01.jpg…（投影片原檔在 說明手冊/，產生器 工具/make_guide_v2.py）。
+# 兩個比例都放：依螢幕推薦（手機直拿先 4:5，電腦或橫放先 16:9），「建議」那顆、正在看的那顆用橘底；右邊露出下一張；可全螢幕。
+GUIDE_CSS = """.doc.wide{max-width:1040px}
+.pick{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 16px}
+.pick button{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #3a3d44;background:transparent;color:#c9c7c0;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.pick button:hover{border-color:#d97757;color:#ecebe6}
+.pick button:focus-visible,.ctl button:focus-visible,.strip:focus-visible{outline:2px solid #d97757;outline-offset:2px}
+.pick button[aria-pressed=true]{background:#d97757;border-color:#d97757;color:#14161a;font-weight:600}
+.pick .rec{font-size:12px;line-height:1.4;padding:0 6px;border-radius:4px;border:1px solid currentColor}
+.deck[hidden]{display:none}
+.strip{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:2px}
+.strip::-webkit-scrollbar{display:none}
+.strip img{flex:0 0 88%;width:88%;height:auto;scroll-snap-align:start;border-radius:10px;border:1px solid #262930;display:block;background:#1c1f24}
+.deck[data-r="4x5"] .strip img{flex-basis:min(88%,440px);width:min(88%,440px)}
+.ctl{display:flex;align-items:center;gap:8px;margin-top:10px}
+.ctl button{font:inherit;font-size:15px;min-width:44px;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid #3a3d44;background:transparent;color:#ecebe6;cursor:pointer}
+.ctl button:hover{border-color:#d97757;color:#d97757}
+.ctl .pos{font-variant-numeric:tabular-nums;color:#a7a59e;font-size:14px;margin-right:auto}
+.deck:fullscreen{background:#000;display:flex;flex-direction:column;justify-content:center;padding:12px}
+.deck:fullscreen .strip img,.deck[data-r="4x5"]:fullscreen .strip img{flex-basis:100%;width:100%;max-height:calc(100vh - 84px);object-fit:contain;border:0;background:#000}
+"""
+
+GUIDE_JS = r"""
+(function(){
+  const picks=[...document.querySelectorAll('.pick button')], decks=[...document.querySelectorAll('.deck')];
+  const phone=matchMedia('(orientation: portrait) and (max-width: 820px)').matches;   // 手機直拿：先看 4:5
+  const rec=phone?'4x5':'16x9';
+  picks.forEach(b=>{ if(b.dataset.r===rec){ b.insertAdjacentHTML('beforeend','<small class="rec">建議</small>'); b.parentNode.prepend(b); } });
+  const show=r=>{ picks.forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===r)); decks.forEach(d=>d.hidden=d.dataset.r!==r); };
+  picks.forEach(b=>b.addEventListener('click',()=>show(b.dataset.r)));
+  show(rec);
+  decks.forEach(d=>{
+    const strip=d.querySelector('.strip'), imgs=[...strip.children], pos=d.querySelector('.pos');
+    const cur=()=>{ let best=0,dist=1e9; imgs.forEach((im,i)=>{ const x=Math.abs(im.offsetLeft-strip.scrollLeft-strip.offsetLeft); if(x<dist){dist=x;best=i;} }); return best; };
+    const go=i=>{ i=Math.max(0,Math.min(imgs.length-1,i)); strip.scrollTo({left:imgs[i].offsetLeft-strip.offsetLeft,behavior:'smooth'}); };
+    const upd=()=>{ pos.textContent=(cur()+1)+' / '+imgs.length; };
+    strip.addEventListener('scroll',()=>{ clearTimeout(strip._t); strip._t=setTimeout(upd,60); });
+    d.querySelector('.prev').addEventListener('click',()=>go(cur()-1));
+    d.querySelector('.next').addEventListener('click',()=>go(cur()+1));
+    strip.addEventListener('keydown',e=>{ if(e.key==='ArrowRight'){go(cur()+1);e.preventDefault();} if(e.key==='ArrowLeft'){go(cur()-1);e.preventDefault();} });
+    const fs=d.querySelector('.fs');
+    if(!d.requestFullscreen){ fs.hidden=true; }
+    fs.addEventListener('click',()=>{ const i=cur(); (document.fullscreenElement?document.exitFullscreen():d.requestFullscreen()).then(()=>setTimeout(()=>go(i),120)); });
+    document.addEventListener('fullscreenchange',()=>{ fs.textContent=document.fullscreenElement===d?'離開全螢幕':'全螢幕'; if(document.fullscreenElement===d) strip.focus(); });
+    upd();
+  });
+})();
+"""
+
+
+def guide_page(w, built, nav_links):
+    """手冊頁：16:9、4:5 兩組使用教學。website/guide/ 沒有圖就不產生，回傳 False。"""
+    base = OUT.parent / "guide"
+    sets = {r: sorted((base / r).glob("*.jpg")) for r in ("16x9", "4x5")}
+    if not any(sets.values()):
+        return False
+    label = {"16x9": ("電腦版 16:9", "頁"), "4x5": ("手機版 4:5", "張")}
+    picks = "".join(f'<button type="button" data-r="{r}" aria-pressed="false">{label[r][0]} · {len(v)} {label[r][1]}</button>'
+                    for r, v in sets.items() if v)
+    decks = "".join(
+        f'<div class="deck" data-r="{r}"><div class="strip" tabindex="0" aria-label="使用教學 {label[r][0]}，左右滑動">'
+        + "".join(f'<img src="guide/{r}/{f.name}" alt="使用教學 {label[r][0]} 第 {i} {label[r][1]}" loading="{"eager" if i < 3 else "lazy"}">'
+                  for i, f in enumerate(v, 1))
+        + '</div><div class="ctl"><button type="button" class="prev" aria-label="上一張">‹</button>'
+          f'<span class="pos" aria-live="polite">1 / {len(v)}</span>'
+          '<button type="button" class="next" aria-label="下一張">›</button><button type="button" class="fs">全螢幕</button></div></div>'
+        for r, v in sets.items() if v)
+    body = f"""<div class="doc wide">
+<section>
+  <h1>使用教學</h1>
+  <p>雙宇和子琦帶你看懂這個網站：今天的天氣、指標、走勢圖、比較和回測頁怎麼看。</p>
+  <div class="pick" role="group" aria-label="選擇版本">{picks}</div>
+  {decks}
+</section>
+</div>"""
+    page = doc_shell("使用教學 · market_weather", body, w, built, nav_links, GUIDE_CSS, GUIDE_JS)
+    (OUT.parent / "guide.html").write_text(page, encoding="utf-8", newline="\n")
+    return True
+
+
+def doc_shell(title, body, w, built, nav_links, extra_css="", extra_js=""):
+    """回測頁、手冊頁共用的外框：釘選頁首＋頁尾，樣式和首頁一致。"""
+    nav = "".join(f'<a href="{h}"{" aria-current=page" if cur else ""}>{t}</a>' for h, t, cur in nav_links)
+    js = f"<script>{extra_js}</script>" if extra_js else ""
+    return f"""<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<style>{BT_CSS}{extra_css}.brand .icon{{color:{WEATHER[w]['color']}}}</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="hwrap">
+    <a class="brand" href="index.html">{ICONS[w]}<span class="sr">今天{w}，回首頁，</span>market_weather</a>
+    <nav aria-label="網站導覽">{nav}</nav>
+  </div>
+</header>
+<main>
+{body}
+</main>
+<footer class="site-footer">
+  <div class="foot">
+    <p>網頁更新於 {built}（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p><a href="index.html">回到今天的天氣</a> · <a href="History/index.html">歷史版本</a></p>
+    <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
+  </div>
+</footer>
+{js}
+</body>
+</html>
+"""
+
+
 # ---------- 組頁面 ----------
 def build():
     series_map = {code: load(code) for code, *_ in ROWS}
@@ -1197,9 +1313,11 @@ def build():
         groups_html.append(f'<section class="group" id="ndc"><h2>景氣（每月）</h2>{ndc_row(ndc)}</section>')
 
     nav = [("today", "今天"), ("compare", "比較"), ("list", "指標")] + ([("ndc", "景氣")] if ndc else [])
-    nav_html = "".join(f'<a href="#{a}">{t}</a>' for a, t in nav) + '<a href="backtest.html">回測</a>'
-    backtest_page(series_map, ndc, w, built,
-                  [(f"index.html#{a}", t, False) for a, t in nav] + [("backtest.html", "回測", True)], bool(ndc))
+    pages = [("backtest.html", "回測")] + ([("guide.html", "手冊")] if any((OUT.parent / "guide").glob("*/*.jpg")) else [])
+    nav_html = "".join(f'<a href="#{a}">{t}</a>' for a, t in nav) + "".join(f'<a href="{h}">{t}</a>' for h, t in pages)
+    links = lambda here: [(f"index.html#{a}", t, False) for a, t in nav] + [(h, t, h == here) for h, t in pages]
+    backtest_page(series_map, ndc, w, built, links("backtest.html"), bool(ndc))
+    guide_page(w, built, links("guide.html"))
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
     ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
     cmp_meta = {code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code == "us10y" else ""}
@@ -1382,6 +1500,7 @@ details[open] summary.row{{background:#1c1f24}}
       <summary>晴雨怎麼判斷（草案）</summary>
       <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
     </details>
+    <p><a href="guide.html">使用教學</a>（雙宇和子琦帶你看懂這個網站）</p>
     <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
     <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
     <p>網頁更新於 {built}（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>

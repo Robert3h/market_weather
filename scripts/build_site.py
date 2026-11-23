@@ -367,7 +367,7 @@ def compare_block(has_ndc):
   <div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
-  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。{"景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減，疊在一起時和其他指標一樣算變化 %，只供參考。" if has_ndc else ""}</p>
+  <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。{"景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減（背景顏色是燈號的分數區間），疊在一起時和其他指標一樣算變化 %，只供參考。線下方的色帶是每個月的燈號。" if has_ndc else ""}</p>
   </div>
 </div>"""
 
@@ -395,7 +395,7 @@ function cmpRender(box) {
     s.i0 = Math.max(0, lastLE(s.d.days, T0)); s.last = s.d.days.length - 1; s.base = s.d.c[s.i0];
     s.pct = i => (s.d.c[i] / s.base - 1) * 100;
   }
-  const W = Math.max(plot.clientWidth, 280), pl = 4, pr = 58, pt = 8, pb = 22, GAP = 18;
+  const W = Math.max(plot.clientWidth, 280), pl = 4, pr = 58, pt = 8, pb = ser.some(s => s.d.l) ? 30 : 22, GAP = 18;   // 有景氣燈號色帶時，底下多留一點給日期
   const PH = stack ? (ser.length > 3 ? 84 : 104) : 250;
   const H = pt + (stack ? ser.length * PH + (ser.length - 1) * GAP : PH) + pb;
   const X = day => pl + (day - T0) / Math.max(T1 - T0, 1) * (W - pl - pr);
@@ -414,6 +414,12 @@ function cmpRender(box) {
     } else pts = sample(s.i0, s.last + 1, s.d.c, Math.min(800, W * 2)).map(i => Xc(s.d.days[i]).toFixed(1) + "," + Y(i).toFixed(1));
     el("polyline", {points: pts.join(" "), fill: "none", stroke: s.color, "stroke-width": 1.6, "stroke-linejoin": "round"}, svg);
   };
+  const strip = (s, y) => {   // 景氣燈號色帶（2026-11-23）：每個月一格，顏色＝當月燈號
+    for (let i = s.i0; i <= s.last; i++) {
+      const x0 = Xc(s.d.days[i]), x1 = Math.min(X(i < s.last ? s.d.days[i + 1] : s.d.end), W - pr);
+      if (x1 > x0) el("rect", {x: x0.toFixed(1), y: y.toFixed(1), width: (x1 - x0 + 0.3).toFixed(2), height: 5, fill: NDC_COLORS[s.d.l[i]]}, svg);
+    }
+  };
   const labels = [];
   if (stack) {
     ser.forEach((s, k) => {
@@ -423,6 +429,10 @@ function cmpRender(box) {
       if (lo === hi) { lo -= 1; hi += 1; }
       const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
       const Yv = v => top + (1 - (v - lo) / (hi - lo)) * PH;
+      if (s.d.l) for (const [a, b, k] of [[8.5, 16.5, 0], [16.5, 22.5, 1], [22.5, 31.5, 2], [31.5, 37.5, 3], [37.5, 45.5, 4]]) {
+        const y0 = Yv(Math.min(b, hi)), y1 = Yv(Math.max(a, lo));   // 燈號分數區間：9–16 藍、17–22 黃藍、23–31 綠、32–37 黃紅、38–45 紅
+        if (y1 > y0) el("rect", {x: pl, y: y0.toFixed(1), width: W - pl - pr, height: (y1 - y0).toFixed(1), fill: NDC_COLORS[k], opacity: 0.14}, svg);
+      }
       const ticks = niceTicks(lo, hi, 3), step = ticks.length > 1 ? ticks[1] - ticks[0] : 1;
       for (const t of ticks) {
         el("line", {x1: pl, x2: W - pr, y1: Yv(t), y2: Yv(t), stroke: "#262930"}, svg);
@@ -431,6 +441,7 @@ function cmpRender(box) {
       el("line", {x1: pl, x2: W - pr, y1: Yv(s.base), y2: Yv(s.base), stroke: "#5a5d64", "stroke-dasharray": "3 4"}, svg);
       s.Y = i => Yv(s.d.c[i]);
       line(s, s.Y);
+      if (s.d.l) strip(s, top + PH + 3);
       const ch = change(s.base, s.d.c[s.last], s.m.kind, s.m.dg);
       if (s.m.kind === "score") ch.text += " 分";
       labels.push([top + 13, s, ch]);
@@ -446,6 +457,7 @@ function cmpRender(box) {
       el("text", {x: W - pr + 6, y: Yp(t) + 4}, svg).textContent = (t > 0 ? "+" : "") + tickText(t, step, "%");
     }
     for (const s of ser) { s.Y = i => Yp(s.pct(i)); line(s, s.Y); }
+    for (const s of ser) if (s.d.l) strip(s, pt + PH + 3);
   }
   for (const [y, s, ch] of labels) {   // 每張小圖左上角：名稱＋期間漲跌（最後畫，才不會被線蓋住）
     const t = el("text", {x: pl + 2, y, style: "paint-order:stroke;stroke:#14161a;stroke-width:4px;stroke-linejoin:round;font-size:12px"}, svg);

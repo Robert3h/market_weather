@@ -7,6 +7,7 @@
 """
 import bisect
 import csv
+import re
 import datetime as dt
 import html
 import json
@@ -547,6 +548,49 @@ window.addEventListener("resize", () => setTimeout(() => document.querySelectorA
 """
 
 
+# ---------- 政策事件（2026-11-23，點子清單第四節第 6 點：做法 ①＋②） ----------
+# ① data/events_fed.csv：聯準會升降息，fetch_quotes.py 從聯準會利率表自動抓，每則都連到當天的聲明稿。
+# ② data/events_manual.csv：Robert 自己挑的事件（日期,市場,說明,連結）。Claude 不自己編事件和日期。
+#    可能用 Excel 存檔：UTF-8 和 Excel 預設的 Big5（cp950）都讀；日期 2025-04-02、2025/4/2 都可以；市場空白＝全部。
+# 走勢圖底部畫小三角形；手指或滑鼠靠近時，圖下方一行寫說明和原文連結（離開圖也留著，觸控才點得到連結）。
+EVENT_MARKETS = ("全部", "台股", "美股")
+
+
+def _read_manual(f):
+    for enc in ("utf-8-sig", "cp950"):
+        try:
+            return list(csv.DictReader(f.read_text(encoding=enc).splitlines()))
+        except UnicodeDecodeError:
+            continue
+    raise SystemExit(f"{f.name} 讀不出來：請用 Excel「另存新檔 → CSV UTF-8（逗號分隔）」")
+
+
+def load_events():
+    out = []
+    f = DATA_DIR / "events_fed.csv"
+    if f.exists():
+        with f.open(encoding="utf-8") as fh:
+            out += [(r["date"], r["market"], r["text"], r["url"]) for r in csv.DictReader(fh)]
+    f = DATA_DIR / "events_manual.csv"
+    if f.exists():
+        for n, r in enumerate(_read_manual(f), 2):
+            raw = (r.get("日期") or "").strip()
+            if not raw:
+                continue
+            try:
+                y, m, d = re.split(r"[-/.]", raw)
+                date = dt.date(int(y), int(m), int(d)).isoformat()
+            except ValueError:
+                print(f"【事件】events_manual.csv 第 {n} 行的日期「{raw}」看不懂，先略過（要寫成 2025-04-02）")
+                continue
+            mk = (r.get("市場") or "").strip() or "全部"
+            if mk not in EVENT_MARKETS:
+                print(f"【事件】events_manual.csv 第 {n} 行的市場「{mk}」要是 全部／台股／美股，先當成全部")
+                mk = "全部"
+            out.append((date, mk, (r.get("說明") or "").strip(), (r.get("連結") or "").strip()))
+    return sorted(out)
+
+
 def chart_block(code, kind):
     buttons = "".join(
         f'<button type="button" data-r="{r}"{" aria-pressed=true" if r == "1Y" else " aria-pressed=false"}>{label}</button>'
@@ -565,10 +609,12 @@ def chart_block(code, kind):
                  '<button type="button" data-m="pe" aria-pressed="false">本益比</button></div>\n  ')
         legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
                    f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span></p>')
-    return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}"{suf}{pe_attr}>
+    mk = "台股" if code in ("taiex", "2330", "usdtwd") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
+    return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}" data-mk="{mk}"{suf}{pe_attr}>
   {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
-  <div class="plot"></div>{legend}
+  <div class="plot"></div>
+  <p class="evline" aria-live="polite"></p>{legend}
 </div>"""
 
 
@@ -816,7 +862,11 @@ function change(a, b, kind, dg) {
 }
 function el(tag, attrs, parent) {
   const e = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  for (const k in attrs) {
+    const v = attrs[k];
+    if ((k === "fill" || k === "stroke") && typeof v === "string" && v.startsWith("var(")) e.style.setProperty(k, v);   // 主題色是 CSS 變數
+    else e.setAttribute(k, v);
+  }
   if (parent) parent.appendChild(e);
   return e;
 }
@@ -837,7 +887,7 @@ function render(box) {
   }
   const zText = v => { const z = stat.z(v); return (z >= 0 ? "+" : "−") + Math.abs(z).toFixed(1) + "σ"; };
   const plot = box.querySelector(".plot"), readout = box.querySelector(".readout");
-  const W = Math.max(plot.clientWidth, 280), H = 220, pl = 4, pr = 58, pt = 10, pb = 24;
+  const W = Math.max(plot.clientWidth, 280), H = 230, pl = 4, pr = 58, pt = 10, pb = 34;   // 圖和日期之間留一條放事件三角形
   const pts = sample(i0, n, c, Math.min(800, W * 2));
   // 移動平均線（只有價格類）：季線 60 日、年線 240 日，用完整歷史算，所以期間短也畫得出來
   const mas = kind === "price" ? MA_LINES.map(m => ({...m, v: data["ma" + m.n] || (data["ma" + m.n] = sma(c, m.n))})) : [];
@@ -884,9 +934,26 @@ function render(box) {
     el("text", {x: pl + 2, y, style: `fill:${col};paint-order:stroke;stroke:#14161a;stroke-width:4px;stroke-linejoin:round`}, svg).textContent = t;
   el("text", {x: pl, y: H - 6}, svg).textContent = iso(days[i0]);
   el("text", {x: W - pr, y: H - 6, "text-anchor": "end"}, svg).textContent = iso(days[last]);
+  // 政策事件：期間內、這個市場的事件，在圖底部畫小三角形（非交易日的事件，標在下一個交易日）
+  const evs = EVENTS.filter(e => e[0] >= days[i0] && e[0] <= days[last] && (e[1] === "全部" || e[1] === box.dataset.mk))
+    .map(e => { let a = i0, b = last; while (a < b) { const m = (a + b) >> 1; if (days[m] < e[0]) a = m + 1; else b = m; } return {i: a, x: X(a), e}; });
+  const evMarks = evs.map(v => el("path", {d: `M${(v.x - 4.5).toFixed(1)},${H - pb + 11} l4.5,-8 l4.5,8 z`, fill: EV_COLOR}, svg));
   const vline = el("line", {y1: pt, y2: H - pb, stroke: "#8f8d87", visibility: "hidden"}, svg);
   const dot = el("circle", {r: 4, fill: color, stroke: "#14161a", "stroke-width": 2, visibility: "hidden"}, svg);
   plot.replaceChildren(svg);
+  const evline = box.querySelector(".evline");
+  evline.textContent = evs.length ? `▲ 這段期間有 ${evs.length} 個政策事件` : "";
+  evline.classList.remove("on");
+  const showEvent = v => {   // 用 textContent 組，事件文字不會被當成 HTML
+    evMarks.forEach((m, k) => m.style.fill = evs[k] === v ? "#d97757" : EV_COLOR);
+    evline.replaceChildren();
+    const b = document.createElement("b"); b.textContent = iso(v.e[0]) + "　"; evline.append(b, v.e[2]);
+    if (v.e[3]) {
+      const a = document.createElement("a"); a.href = v.e[3]; a.target = "_blank"; a.rel = "noopener"; a.textContent = "原文 ↗";
+      evline.append("　", a);
+    }
+    evline.classList.add("on");
+  };
 
   const summary = pe
     ? `<b>${RANGE_LABEL[r]}</b>　本益比 ${c[last].toFixed(2)} 倍${estTag(last)}　<span class="nw"><span style="color:#8f8d87">平均</span> ${stat.mean.toFixed(1)}</span>　<span class="nw"><span style="color:#8f8d87">位置</span> ${zText(c[last])}</span>`
@@ -896,7 +963,11 @@ function render(box) {
   const show = ev => {
     const rect = svg.getBoundingClientRect();
     const x = (ev.clientX - rect.left) / rect.width * W;
-    const i = Math.max(i0, Math.min(last, Math.round(i0 + (x - pl) / (W - pl - pr) * span)));
+    let i = Math.max(i0, Math.min(last, Math.round(i0 + (x - pl) / (W - pl - pr) * span)));
+    const tol = 10 * W / rect.width;   // 靠近三角形 10px 內就算指到事件（期間長時一天不到 1px，對不準）
+    let near = null;
+    for (const v of evs) if (Math.abs(v.x - x) <= tol && (!near || Math.abs(v.x - x) < Math.abs(near.x - x))) near = v;
+    if (near) { i = near.i; showEvent(near); }
     vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
     dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(c[i])); dot.setAttribute("visibility", "visible");
     if (pe) {
@@ -1112,7 +1183,7 @@ def backtest_page(series_map, ndc, w, built, nav_links, has_ndc):
 </body>
 </html>
 """
-    (OUT.parent / "backtest.html").write_text(page, encoding="utf-8", newline="\n")
+    (OUT.parent / "backtest.html").write_text(themed(page), encoding="utf-8", newline="\n")
     return as_of
 
 
@@ -1218,7 +1289,7 @@ def guide_page(w, built, nav_links):
 </section>
 </div>"""
     page = doc_shell("使用教學 · market_weather", body, w, built, nav_links, GUIDE_CSS, GUIDE_JS)
-    (OUT.parent / "guide.html").write_text(page, encoding="utf-8", newline="\n")
+    (OUT.parent / "guide.html").write_text(themed(page), encoding="utf-8", newline="\n")
     return True
 
 
@@ -1358,7 +1429,7 @@ def logbook_page(w, built, nav_links):
 {deck}
 </div>"""
     page = doc_shell("維修日誌 · market_weather", body, w, built, nav_links, GUIDE_CSS + LB_CSS, GUIDE_JS + OPEN_HASH_JS)
-    (OUT.parent / "logbook.html").write_text(page, encoding="utf-8", newline="\n")
+    (OUT.parent / "logbook.html").write_text(themed(page), encoding="utf-8", newline="\n")
 
 
 # 網址帶 #某個 <details> 的 id 時打開它（首頁 #i-<代號>、維修日誌 #mx-…）：「去看看」一點就落在那個功能上，不用自己找、自己點開
@@ -1369,6 +1440,65 @@ OPEN_HASH_JS = r"""
   open(); addEventListener('hashchange',open);
 })();
 """
+
+
+# ---------- 深色（預設）／淺色主題（2026-11-23，Robert：「希望也有跟 LSA 網站一樣的深色(預設)/淺色模式」）----------
+# 配色照 網站配色圖卡/網站配色圖卡_20261020.md（LSA 網站同一套）：淺色底白、主要文字 #1B1C1E、橘 #B4532E。
+# 做法：程式裡照舊寫深色的色碼；寫出每一頁之前，themed() 把這些色碼換成 CSS 變數，深淺兩組值放在 :root。
+#   切換時顏色直接跟著變，走勢圖不用重畫。SVG 的 fill／stroke 屬性不吃變數，所以畫圖的 el() 和靜態小走勢圖改用 style。
+#   選擇存在瀏覽器的 localStorage「theme」：和 LSA 網站同一個網域、同一個名稱，在 LSA 選了淺色，這裡也是淺色。
+# 投影片是圖片，維持深色。景氣燈號五個燈的顏色兩種主題都一樣（它們是燈號本身的顏色）。
+PALETTE = {   # 深色色碼: (變數名稱, 淺色色碼)
+    "#14161a": ("bg", "#ffffff"),
+    "#181a1f": ("surface", "#f6f3f1"),
+    "#1c1f24": ("surface2", "#f6f3f1"),
+    "#1f2126": ("surface3", "#f0ece9"),
+    "#1f2227": ("rule0", "#eceef0"),
+    "#262930": ("rule", "#e3e5e8"),
+    "#2c2f36": ("rule2", "#dfe1e5"),
+    "#3a3d44": ("rule3", "#c4c7cc"),
+    "#5a5d64": ("faint", "#9aa0a6"),
+    "#8f8d87": ("muted2", "#686c71"),
+    "#a7a59e": ("muted", "#5f6368"),
+    "#c9c7c0": ("ink2", "#3c4043"),
+    "#ecebe6": ("ink", "#1b1c1e"),
+    "#d97757": ("accent", "#b4532e"),
+    "#eb9474": ("accent-strong", "#8f3f20"),
+    "#ef6a5f": ("up", "#c5302a"),        # 紅漲：白底上要深一點才看得清楚
+    "#3fb27f": ("down", "#18794e"),      # 綠跌
+    "#6b9bf0": ("rain", "#2a62c9"),
+    "#e0a95a": ("ma60", "#a96d12"),
+    "#7fa7d9": ("ma240", "#3b6aa8"),
+    "#5fc4b8": ("teal", "#12806f"),
+    "#d58fb5": ("pink", "#a8487c"),
+}
+THEME_CSS = (":root{color-scheme:dark;" + "".join(f"--c-{n}:{d};" for d, (n, _) in PALETTE.items()) + "}"
+             ':root[data-theme="light"]{color-scheme:light;' + "".join(f"--c-{n}:{l};" for _, (n, l) in PALETTE.items()) + "}"
+             ".theme-toggle{font:inherit;font-size:13px;color:var(--c-muted);background:transparent;border:1px solid var(--c-rule3);"
+             "border-radius:6px;padding:0 10px;min-height:32px;margin-left:8px;cursor:pointer;white-space:nowrap;flex:none}"
+             ".theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}"
+             ".theme-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
+             "@media (max-width:480px){.theme-toggle{order:2;margin-left:auto;min-height:30px}.site-header nav{order:3}}")
+THEME_HEAD = ("<script>/* 畫面出現前套用上次選的主題，避免閃一下 */try{if(localStorage.getItem('theme')==='light')"
+              "document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>")
+THEME_JS = """<script>
+(function(){
+  const root=document.documentElement, b=document.querySelector('.theme-toggle'); if(!b) return;
+  const paint=()=>{ const dark=root.getAttribute('data-theme')!=='light'; b.textContent=dark?'切換淺色':'切換深色'; b.setAttribute('aria-pressed',String(!dark)); };
+  b.addEventListener('click',()=>{ const next=root.getAttribute('data-theme')==='light'?'dark':'light'; root.setAttribute('data-theme',next);
+    try{ localStorage.setItem('theme',next); }catch(e){} paint(); });
+  paint();
+})();
+</script>"""
+
+
+def themed(page):
+    for dark, (name, _) in PALETTE.items():
+        page = re.sub(dark, f"var(--c-{name})", page, flags=re.I)
+    page = re.sub(r'\b(fill|stroke)="(var\(--c-[a-z0-9-]+\))"', r'style="\1:\2"', page)   # 靜態 SVG（小走勢圖）
+    page = page.replace("</head>", f"<style>{THEME_CSS}</style>\n{THEME_HEAD}\n</head>", 1)
+    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button>', page, count=1, flags=re.S)
+    return page.replace("</body>", THEME_JS + "\n</body>", 1)
 
 
 # ---------- 組頁面 ----------
@@ -1468,6 +1598,8 @@ def build():
     if ndc:
         cmp_meta["ndc"] = {"name": "景氣燈號", "kind": "score", "dg": 0, "suf": " 分"}
     cmp_meta = json.dumps(cmp_meta, ensure_ascii=False)
+    events = load_events()
+    events_js = json.dumps([[(dt.date.fromisoformat(d) - EPOCH).days, mk, t, u] for d, mk, t, u in events], ensure_ascii=False)
     chart_js = CHART_JS.replace("__BUILD__", dt.datetime.now(TPE).strftime("%Y%m%d%H%M"))   # 讓瀏覽器拿到最新的資料檔
 
     page = f"""<!doctype html>
@@ -1539,6 +1671,9 @@ details[open] summary.row{{background:#1c1f24}}
 .readout{{margin:10px 0 4px;font-size:14px;min-height:1.6em;font-variant-numeric:tabular-nums;color:#c9c7c0}}
 .readout b{{font-weight:600}}
 .nw{{white-space:nowrap}}
+.evline{{margin:4px 0 0;font-size:13px;line-height:1.6;min-height:1.6em;color:#8f8d87}}
+.evline.on{{color:#ecebe6}}
+.evline a{{color:#d97757;display:inline-flex;align-items:center;min-height:32px}}
 .legend{{margin:6px 0 0;font-size:12px;color:#8f8d87;display:flex;gap:14px;flex-wrap:wrap}}
 .legend[hidden]{{display:none}}
 .legend i.sw{{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}}
@@ -1658,6 +1793,7 @@ const MA_LINES = {ma_js};
 const PE_MEAN = "{PE_MEAN}", PE_BAND = "{PE_BAND}";
 const NDC_COLORS = {json.dumps([c for _, c, _ in NDC_LIGHTS])}, NDC_NAMES = {json.dumps([n for n, _, _ in NDC_LIGHTS], ensure_ascii=False)};
 const NDC_LEAD = "{NDC_LEAD}", NDC_COIN = "{NDC_COIN}";
+const EVENTS = {events_js}, EV_COLOR = "#8f8d87";
 const CMP_META = {cmp_meta}, CMP_COLORS = {json.dumps(CMP_COLORS)}, CMP_DEFAULT = {json.dumps(CMP_DEFAULT)};
 {chart_js}
 {NDC_JS}
@@ -1668,7 +1804,7 @@ const CMP_META = {cmp_meta}, CMP_COLORS = {json.dumps(CMP_COLORS)}, CMP_DEFAULT 
 </html>
 """
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(page, encoding="utf-8")
+    OUT.write_text(themed(page), encoding="utf-8")
     print(f"已產生 {OUT.relative_to(ROOT)}：今天 {w}（台股 {today['date']}、美股 {today['us_date']}），"
           f"值得注意 {len(notes)} 則，日曆 晴{counts['晴']} 陰{counts['陰']} 雨{counts['雨']}")
 

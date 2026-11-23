@@ -10,6 +10,7 @@
 歷史資料：CSV 不存在或加 --full 時，從 Yahoo 抓「全部歷史」（每天一筆）；平常只抓近 2 年。
 台股兩個指標：較早的歷史用 Yahoo 補，近 13 個月以證交所官方數字為準（同一天會覆蓋 Yahoo）。
 另外抓國發會景氣燈號（每月）→ data/ndc_signal.csv（month,score,light,leading,coincident），每次整份覆蓋。
+聯準會升降息（政策事件，2026-11-23）→ data/events_fed.csv（date,effective,market,text,url），每次整份重寫，已查過的聲明稿網址沿用。
 """
 import argparse
 import csv
@@ -267,6 +268,98 @@ def save_multpl(rows):
             w.writerow([d, f"{v:.2f}", "multpl 估計" if est else "multpl"])
 
 
+# ---------- 政策事件：聯準會升降息（2026-11-23，點子清單第四節第 6 點的做法 ①） ----------
+# 來源是聯準會自己的利率變動表（2003 年起），不是新聞：只有日期、幅度、目標區間這些客觀數字，中文用固定句型，不用翻譯。
+# 表上的日期是「生效日」：2008 年起通常是宣布的隔天，更早是宣布當天。所以依序試前一天、當天，
+#   哪天的聲明稿網址存在，就用那天當事件日（市場是在宣布那天反應）；都找不到就用生效日、連到利率表。
+FED_TABLE = "https://www.federalreserve.gov/monetarypolicy/openmarket.htm"
+FED_STATEMENT = "https://www.federalreserve.gov/newsevents/pressreleases/monetary{}{}.htm"
+FED_OLD = "https://www.federalreserve.gov/boarddocs/press/monetary/{}/{}/default.htm"
+MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+          "September", "October", "November", "December"]
+
+
+def url_ok(url):
+    try:
+        req = urllib.request.Request(url, headers=UA, method="HEAD")
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def fed_frac(x):
+    """4.25 → '4-1/4'、0.25 → '1/4'、1.00 → '1'：聲明稿寫利率的方式"""
+    w, r = divmod(round(float(x) * 8), 8)
+    part = {0: "", 1: "1/8", 2: "1/4", 3: "3/8", 4: "1/2", 5: "5/8", 6: "3/4", 7: "7/8"}[r]
+    return f"{w}-{part}" if w and part else (part or str(w))
+
+
+def says_level(url, level):
+    """聲明稿真的寫了這次的利率水準才算（同一天可能有別的貨幣政策新聞稿，只看網址存不存在會認錯）。"""
+    try:
+        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", get(url, timeout=20).decode("utf-8", "replace")))
+    except Exception:
+        return False
+    text = re.sub("[‐‑‒–]", "-", text)   # 有些聲明稿用不換行連字號（U+2011），看起來一樣、字元不同
+    a, _, b = level.partition("-")
+    need = f"{fed_frac(a)} to {fed_frac(b)} percent" if b else f"{fed_frac(a)} percent"
+    return "federal funds rate" in text and need in text
+
+
+def fed_text(inc, dec, level):
+    """'25','0','5.25-5.50' → '聯準會升息 0.25 個百分點（1 碼），目標區間 5.25–5.50%'"""
+    bp = dec if dec not in ("0", "...") else inc
+    lo, _, hi = bp.partition("-")
+    pp = lambda b: f"{int(b) / 100:g}"
+    size = f"{pp(lo)}～{pp(hi)} 個百分點" if hi else f"{pp(lo)} 個百分點（{int(lo) // 25} 碼）"
+    word = "降息" if dec not in ("0", "...") else "升息"
+    a, _, b = level.partition("-")
+    lv = f"目標區間 {a}–{b}%" if b else f"目標利率 {a}%"
+    return f"聯準會{word} {size}，{lv}"
+
+
+def fetch_fed_events():
+    """回傳 [(事件日, 生效日, 說明, 網址)]，舊到新。"""
+    page = get(FED_TABLE).decode("utf-8")
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", page)).replace("&nbsp;", " ").replace("\xa0", " ")
+    parts = re.split(r"(\d{4}) Date Increase Decrease Level \(%\)", text)
+    old = {}
+    f = DATA_DIR / "events_fed.csv"
+    if f.exists():   # 已經查過的聲明稿網址沿用，不用每天重問聯準會網站
+        with f.open(encoding="utf-8") as fh:
+            old = {r["effective"]: (r["date"], r["url"]) for r in csv.DictReader(fh)}
+    out = []
+    for year, body in zip(parts[1::2], parts[2::2]):
+        body = body.split("Back to year navigation")[0]
+        for mon, day, inc, dec, level in re.findall(
+                r"(" + "|".join(MONTHS) + r") (\d{1,2})\s*\*?\s+(\S+)\s+(\S+)\s+(\d[\d.]*(?:-[\d.]+)?)", body):
+            eff = dt.date(int(year), MONTHS.index(mon) + 1, int(day))
+            if eff.isoformat() in old:
+                date, url = old[eff.isoformat()]
+            else:
+                date, url = eff.isoformat(), FED_TABLE
+                for cand in (eff - dt.timedelta(days=1), eff):
+                    ymd = cand.strftime("%Y%m%d")
+                    urls = [FED_STATEMENT.format(ymd, x) for x in "ab"] + [FED_OLD.format(cand.year, ymd)]   # 2006 年以前在舊網址
+                    hit = next((u for u in urls if says_level(u, level)), None)
+                    if hit:
+                        date, url = cand.isoformat(), hit
+                        break
+            out.append((date, eff.isoformat(), fed_text(inc, dec, level), url))
+    if len(out) < 40:
+        raise ValueError(f"聯準會利率表只解析出 {len(out)} 筆，格式可能改了")
+    return sorted(out)
+
+
+def save_fed_events(rows):
+    with (DATA_DIR / "events_fed.csv").open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["date", "effective", "market", "text", "url"])
+        for d, eff, t, u in rows:
+            w.writerow([d, eff, "全部", t, u])
+
+
 def save_csv(code, rows, source):
     path = DATA_DIR / f"{code}.csv"
     old = {}
@@ -371,6 +464,18 @@ def main():
         except Exception as e:
             log(args.where, "spx_pe", "multpl.com", "FAIL", "", 0, repr(e)[:200])
             print(f"FAIL {'標普 500 本益比':<18} {e!r}"[:200])
+
+    if not args.only or "events_fed" in args.only:   # 政策事件：聯準會升降息
+        try:
+            rows = fetch_fed_events()
+            save_fed_events(rows)
+            linked = sum(1 for r in rows if r[3] != FED_TABLE)
+            log(args.where, "events_fed", "federalreserve.gov", "OK", rows[-1][0], len(rows), f"{linked} 筆連到聲明稿")
+            print(f"OK   {'聯準會升降息':<18} 最新 {rows[-1][0]}  {rows[-1][2]}  （共 {len(rows)} 次，{linked} 次連到聲明稿）")
+            ok += 1
+        except Exception as e:
+            log(args.where, "events_fed", "federalreserve.gov", "FAIL", "", 0, repr(e)[:200])
+            print(f"FAIL {'聯準會升降息':<18} {e!r}"[:200])
 
     if not args.only or "ndc_signal" in args.only:   # 國發會景氣燈號（每月）
         try:

@@ -6,10 +6,23 @@
 <title>雨 · market_weather 11/20</title>
 <style>
 *{box-sizing:border-box}
+html{scroll-padding-top:64px}
+@media (max-width:480px){html{scroll-padding-top:92px}}
 body{margin:0;background:#14161a;color:#ecebe6;font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;-webkit-text-size-adjust:100%}
 .wrap{max-width:1180px;margin:0 auto;padding:1.5rem 1rem 3rem;display:flex;flex-direction:column;gap:24px}
-.top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#a7a59e}
-.top b{font-weight:600;letter-spacing:.04em}
+.site-header{position:sticky;top:0;z-index:20;background:#14161a;border-bottom:1px solid #262930}
+.hwrap{max-width:1180px;margin:0 auto;padding:8px 1rem;display:flex;align-items:center;gap:4px 16px}
+.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:#ecebe6;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:.04em}
+.brand .icon{width:22px;height:22px;flex:none;color:#6b9bf0}
+.brand:hover{color:#d97757}
+.brand:focus-visible,.site-header nav a:focus-visible{outline:2px solid #d97757;outline-offset:2px;border-radius:4px}
+.site-header nav{margin-left:auto;display:flex;gap:2px}
+.site-header nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 10px;color:#a7a59e;text-decoration:none;font-size:14px;white-space:nowrap}
+.site-header nav a:hover{color:#d97757;text-decoration:underline;text-underline-offset:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.site-footer{border-top:1px solid #262930}
+.site-footer .foot{max-width:1180px;margin:0 auto;padding:20px 1rem 40px;display:flex;flex-direction:column;gap:6px}
+.site-footer p{margin:0}
 .cols{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
 aside{flex:1 1 300px;max-width:400px;display:flex;flex-direction:column;gap:22px;min-width:0}
 main{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px}
@@ -59,6 +72,22 @@ details[open] summary.row{background:#1c1f24}
 .legend i.sw{width:10px;height:10px;border:0;border-radius:2px;vertical-align:-1px}
 .chg .sub{display:block;font-size:12px;color:#8f8d87}
 .ndc{margin:8px 6px 16px}
+.facts{margin:0 6px 20px;display:flex;flex-direction:column;gap:16px}
+.fact h3{margin:0 0 6px;font-size:13px;font-weight:600;color:#a7a59e}
+.fact p{margin:0;font-size:14px;line-height:1.7;color:#c9c7c0}
+.fact b{font-weight:600}
+.range{display:grid;grid-template-columns:1fr 1fr;row-gap:6px;font-size:14px;font-variant-numeric:tabular-nums}
+.range .bar{grid-column:1/3;position:relative;height:6px;border-radius:3px;background:#2c2f36;margin:6px 0}
+.range .bar i{position:absolute;top:-5px;width:4px;height:16px;margin-left:-2px;border-radius:2px;background:#ecebe6}
+.range small{display:block;font-size:12px;color:#8f8d87}
+.range .hi{text-align:right}
+.tbl{overflow-x:auto;margin-top:8px}
+.tbl table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl th{font-weight:600;color:#8f8d87;text-align:right;padding:6px 8px;border-bottom:1px solid #262930}
+.tbl th:first-child,.tbl td:first-child{text-align:left;padding-left:0}
+.tbl td{padding:7px 8px;border-bottom:1px solid #1f2227;color:#c9c7c0}
+.tbl td.num{text-align:right}
+.tbl tr.now td{color:#ecebe6;font-weight:600}
 .cmp{border-top:1px solid #262930;padding:10px 6px 8px}
 .cmp .hint{margin:0 0 8px;font-size:13px;color:#a7a59e}
 .cmp .open{font:inherit;font-size:14px;min-height:40px;padding:0 16px;border-radius:8px;border:1px solid #d97757;background:transparent;color:#ecebe6;cursor:pointer}
@@ -97,15 +126,26 @@ details[open] summary.row{background:#1c1f24}
   .ranges button{min-width:0;padding:0;font-size:12px;min-height:34px}
   .hero .word{font-size:64px}
   .hero .icon{width:64px;height:64px}
+  .hwrap{padding:4px 12px 0;gap:0;flex-wrap:wrap}
+  .tbl table{font-size:12px}
+  .tbl th,.tbl td{padding:6px 4px}
+  .brand{font-size:14px;gap:6px;min-height:36px}
+  .site-header nav{margin-left:0;width:100%;justify-content:space-between}
+  .site-header nav a{padding:0 4px}
 }
 </style>
 </head>
-<body>
+<body id="top">
+<header class="site-header">
+  <div class="hwrap">
+    <a class="brand" href="#top"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="sr">今天雨，</span>market_weather</a>
+    <nav aria-label="跳到這一頁的區塊"><a href="#today">今天</a><a href="#compare">比較</a><a href="#list">指標</a><a href="#ndc">景氣</a><a href="backtest.html">回測</a></nav>
+  </div>
+</header>
 <div class="wrap">
-  <div class="top"><b>market_weather</b><span>更新於 2026-11-22 22:37</span></div>
   
   <div class="cols">
-    <aside>
+    <aside id="today">
       <div>
         <div class="hero"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="word">雨</span></div>
       </div>
@@ -113,16 +153,16 @@ details[open] summary.row{background:#1c1f24}
         <p class="why">台股跌 6.23%、標普 500 跌 3.70%；VIX 35.9，高於 25。連續第 5 個雨天。</p>
         <p class="dates">台股 11/20 收盤 · 美股 11/20 收盤</p>
       </div>
-      <section class="block"><h2>今天值得注意</h2><p>加權指數跌 6.23%，是近 60 個交易日最大單日跌幅（11/20）。</p><p>跌超過 2%：台積電 4.8%、標普 500 3.7%、那斯達克 100 5.7%、費城半導體 10.6%、台積電 ADR 9.5%。</p><p>VIX 35.9，高於 25（市場明顯緊張）。</p><p>美債 10 年殖利率一天降 0.14 個百分點，到 4.91%。</p></section>
+      <section class="block"><h2>今天值得注意</h2><p>加權指數跌 6.23%，是近 60 個交易日最大單日跌幅（11/20）。</p><p>輝達跌 14.01%，是近 60 個交易日最大單日跌幅（11/20）。</p><p>跌超過 2%：台積電 4.8%、標普 500 3.7%、那斯達克 100 5.7%、費城半導體指數 10.7%、半導體 ETF 10.6%、台積電 ADR 9.5%。</p><p>VIX 35.9，高於 25（市場明顯緊張）。</p><p>美債 10 年殖利率一天降 0.14 個百分點，到 4.91%。</p></section>
       <section class="block">
         <div class="calhead"><h2>最近 30 個交易日</h2><span>晴 5 · 陰 7 · 雨 18</span></div>
         <div class="cal"><span class="cell" style="background:#3a3d44" title="10/7 陰" role="img" aria-label="10/7 陰"></span><span class="cell" style="background:#3a3d44" title="10/8 陰" role="img" aria-label="10/8 陰"></span><span class="cell" style="background:#3a3d44" title="10/12 陰" role="img" aria-label="10/12 陰"></span><span class="cell" style="background:#3d6fd1" title="10/13 雨" role="img" aria-label="10/13 雨"></span><span class="cell" style="background:#3a3d44" title="10/14 陰" role="img" aria-label="10/14 陰"></span><span class="cell" style="background:#3d6fd1" title="10/15 雨" role="img" aria-label="10/15 雨"></span><span class="cell" style="background:#d97757" title="10/16 晴" role="img" aria-label="10/16 晴"></span><span class="cell" style="background:#3d6fd1" title="10/19 雨" role="img" aria-label="10/19 雨"></span><span class="cell" style="background:#3d6fd1" title="10/20 雨" role="img" aria-label="10/20 雨"></span><span class="cell" style="background:#d97757" title="10/21 晴" role="img" aria-label="10/21 晴"></span><span class="cell" style="background:#3d6fd1" title="10/22 雨" role="img" aria-label="10/22 雨"></span><span class="cell" style="background:#d97757" title="10/27 晴" role="img" aria-label="10/27 晴"></span><span class="cell" style="background:#d97757" title="10/28 晴" role="img" aria-label="10/28 晴"></span><span class="cell" style="background:#3d6fd1" title="10/29 雨" role="img" aria-label="10/29 雨"></span><span class="cell" style="background:#3d6fd1" title="10/30 雨" role="img" aria-label="10/30 雨"></span><span class="cell" style="background:#3d6fd1" title="11/2 雨" role="img" aria-label="11/2 雨"></span><span class="cell" style="background:#3d6fd1" title="11/3 雨" role="img" aria-label="11/3 雨"></span><span class="cell" style="background:#3a3d44" title="11/4 陰" role="img" aria-label="11/4 陰"></span><span class="cell" style="background:#3d6fd1" title="11/5 雨" role="img" aria-label="11/5 雨"></span><span class="cell" style="background:#3d6fd1" title="11/6 雨" role="img" aria-label="11/6 雨"></span><span class="cell" style="background:#3d6fd1" title="11/9 雨" role="img" aria-label="11/9 雨"></span><span class="cell" style="background:#d97757" title="11/10 晴" role="img" aria-label="11/10 晴"></span><span class="cell" style="background:#3a3d44" title="11/11 陰" role="img" aria-label="11/11 陰"></span><span class="cell" style="background:#3d6fd1" title="11/12 雨" role="img" aria-label="11/12 雨"></span><span class="cell" style="background:#3a3d44" title="11/13 陰" role="img" aria-label="11/13 陰"></span><span class="cell" style="background:#3d6fd1" title="11/16 雨" role="img" aria-label="11/16 雨"></span><span class="cell" style="background:#3d6fd1" title="11/17 雨" role="img" aria-label="11/17 雨"></span><span class="cell" style="background:#3d6fd1" title="11/18 雨" role="img" aria-label="11/18 雨"></span><span class="cell" style="background:#3d6fd1" title="11/19 雨" role="img" aria-label="11/19 雨"></span><span class="cell today" style="background:#3d6fd1" title="11/20 雨" role="img" aria-label="11/20 雨"></span></div>
       </section>
     </aside>
     <main>
-      <section class="group"><h2>比較</h2><div class="cmp">
+      <section class="group" id="compare"><h2>比較</h2><div class="cmp">
   <p class="hint">勾選最多 5 個指標，放在一起看走勢</p>
-  <div class="chips" role="group" aria-label="勾選要比較的指標"><button type="button" data-c="taiex" aria-pressed="false">加權指數</button><button type="button" data-c="2330" aria-pressed="false">台積電</button><button type="button" data-c="spx" aria-pressed="false">標普 500</button><button type="button" data-c="qqq" aria-pressed="false">那斯達克 100</button><button type="button" data-c="smh" aria-pressed="false">費城半導體</button><button type="button" data-c="tsm" aria-pressed="false">台積電 ADR</button><button type="button" data-c="vix" aria-pressed="false">VIX 恐慌指數</button><button type="button" data-c="us10y" aria-pressed="false">美債 10 年殖利率</button><button type="button" data-c="usdtwd" aria-pressed="false">美元兌台幣</button><button type="button" data-c="gold" aria-pressed="false">黃金</button><button type="button" data-c="btc" aria-pressed="false">比特幣</button><button type="button" data-c="ndc" aria-pressed="false">景氣燈號（每月）</button></div>
+  <div class="chips" role="group" aria-label="勾選要比較的指標"><button type="button" data-c="taiex" aria-pressed="false">加權指數</button><button type="button" data-c="2330" aria-pressed="false">台積電</button><button type="button" data-c="spx" aria-pressed="false">標普 500</button><button type="button" data-c="qqq" aria-pressed="false">那斯達克 100</button><button type="button" data-c="sox" aria-pressed="false">費城半導體指數</button><button type="button" data-c="smh" aria-pressed="false">半導體 ETF</button><button type="button" data-c="nvda" aria-pressed="false">輝達</button><button type="button" data-c="tsm" aria-pressed="false">台積電 ADR</button><button type="button" data-c="vix" aria-pressed="false">VIX 恐慌指數</button><button type="button" data-c="us10y" aria-pressed="false">美債 10 年殖利率</button><button type="button" data-c="usdtwd" aria-pressed="false">美元兌台幣</button><button type="button" data-c="gold" aria-pressed="false">黃金</button><button type="button" data-c="btc" aria-pressed="false">比特幣</button><button type="button" data-c="ndc" aria-pressed="false">景氣燈號（每月）</button></div>
   <button type="button" class="open" aria-expanded="false" aria-controls="cmp-body">看比較圖<span aria-hidden="true">▾</span></button>
   <div class="body" id="cmp-body" hidden>
   <div class="modes" role="group" aria-label="排法"><button type="button" data-m="stack" aria-pressed="true">上下排</button><button type="button" data-m="overlay" aria-pressed="false">疊在一起</button></div>
@@ -131,7 +171,7 @@ details[open] summary.row{background:#1c1f24}
   <div class="plot"></div>
   <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減，疊在一起時和其他指標一樣算變化 %，只供參考。</p>
   </div>
-</div></section><section class="group"><h2>台股</h2><details>
+</div></section><section class="group" id="list"><h2>台股</h2><details>
   <summary class="row">
     <span class="name">加權指數<small>TAIEX</small></span>
     <span class="value">36,033.29</span>
@@ -143,6 +183,20 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−27.7%</b>（最高點 2026-10-06，49,822.55）。從高點下跌到現在 1 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 26,434.94，最高 49,822.55，現在 36,033.29，在區間的 41% 位置">
+      <span class="bar"><i style="left:41.0%"></i></span>
+      <span class="lo">26,434.94<small>2025-11-21</small></span><span class="hi">49,822.55<small>2026-10-06</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>1997 年以來共 6 次。已回到前高的 5 次，從谷底回到前高的時間中位數約 12 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-10 → 2026-11</td><td class="num" style="color:#3fb27f">−27.7%</td><td class="num">1 個月</td><td class="num">還沒回到</td></tr><tr><td>2024-07 → 2025-04</td><td class="num" style="color:#3fb27f">−28.7%</td><td class="num">9 個月</td><td class="num">4 個月</td></tr><tr><td>2022-01 → 2022-10</td><td class="num" style="color:#3fb27f">−31.6%</td><td class="num">10 個月</td><td class="num">16 個月</td></tr><tr><td>2020-01 → 2020-03</td><td class="num" style="color:#3fb27f">−28.7%</td><td class="num">2 個月</td><td class="num">4 個月</td></tr><tr><td>2000-02 → 2001-10</td><td class="num" style="color:#3fb27f">−66.2%</td><td class="num">20 個月</td><td class="num">15.7 年</td></tr><tr><td>1997-08 → 1999-02</td><td class="num" style="color:#3fb27f">−45.9%</td><td class="num">17 個月</td><td class="num">12 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，1997 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details><details>
   <summary class="row">
     <span class="name">台積電<small>2330</small></span>
@@ -154,8 +208,22 @@ details[open] summary.row{background:#1c1f24}
   <div class="modes" role="group" aria-label="圖表類型"><button type="button" data-m="price" aria-pressed="true">股價</button><button type="button" data-m="pe" aria-pressed="false">本益比</button></div>
   <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
   <p class="readout" aria-live="polite">載入中…</p>
-  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p><p class="legend" data-for="pe" hidden><span><i style="border-color:#ecebe6"></i>期間平均</span><span><i style="border-color:#8f8d87"></i>±1 標準差</span><span>（證交所本益比）</span></p>
+  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p><p class="legend" data-for="pe" hidden><span><i style="border-color:#ecebe6"></i>期間平均</span><span><i style="border-color:#8f8d87"></i>±1 標準差</span><span>（證交所本益比，每天）</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−22.6%</b>（最高點 2026-10-07，2,585）。從高點下跌到現在 1 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 1,375，最高 2,585，現在 2,000，在區間的 52% 位置">
+      <span class="bar"><i style="left:51.7%"></i></span>
+      <span class="lo">1,375<small>2025-11-24</small></span><span class="hi">2,585<small>2026-10-06</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>2000 年以來共 8 次。已回到前高的 7 次，從谷底回到前高的時間中位數約 4 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-10 → 2026-11</td><td class="num" style="color:#3fb27f">−22.6%</td><td class="num">1 個月</td><td class="num">還沒回到</td></tr><tr><td>2025-01 → 2025-04</td><td class="num" style="color:#3fb27f">−30.8%</td><td class="num">3 個月</td><td class="num">3 個月</td></tr><tr><td>2024-07 → 2024-08</td><td class="num" style="color:#3fb27f">−24.5%</td><td class="num">25 天</td><td class="num">2 個月</td></tr><tr><td>2022-01 → 2022-10</td><td class="num" style="color:#3fb27f">−45.7%</td><td class="num">9 個月</td><td class="num">16 個月</td></tr><tr><td>2020-01 → 2020-03</td><td class="num" style="color:#3fb27f">−28.3%</td><td class="num">2 個月</td><td class="num">4 個月</td></tr><tr><td>2018-01 → 2019-01</td><td class="num" style="color:#3fb27f">−21.8%</td><td class="num">11 個月</td><td class="num">4 個月</td></tr><tr><td>2015-02 → 2015-08</td><td class="num" style="color:#3fb27f">−25.6%</td><td class="num">6 個月</td><td class="num">7 個月</td></tr><tr><td>2000-02 → 2002-10</td><td class="num" style="color:#3fb27f">−68.0%</td><td class="num">2.7 年</td><td class="num">9.5 年</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，2000 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details></section><section class="group"><h2>美股</h2><details>
   <summary class="row">
     <span class="name">標普 500<small>S&P 500</small></span>
@@ -163,11 +231,26 @@ details[open] summary.row{background:#1c1f24}
     <span class="chg" style="color:#3fb27f">▼ 3.70%</span>
     <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,5.7 3.3,5.8 4.6,4.3 5.9,4.8 7.2,5.5 8.5,7.0 9.7,6.0 11.0,3.9 12.3,4.7 13.6,5.8 14.9,6.8 16.2,8.0 17.5,6.3 18.8,7.3 20.1,8.2 21.4,9.1 22.6,6.8 23.9,6.4 25.2,3.4 26.5,3.4 27.8,5.0 29.1,5.0 30.4,4.0 31.7,5.6 33.0,5.9 34.3,6.4 35.5,6.0 36.8,4.5 38.1,3.2 39.4,2.0 40.7,2.5 42.0,3.4 43.3,2.2 44.6,2.3 45.9,2.4 47.2,4.6 48.5,4.0 49.7,6.2 51.0,5.4 52.3,4.8 53.6,3.6 54.9,6.1 56.2,7.2 57.5,5.8 58.8,4.5 60.1,4.0 61.4,4.6 62.6,8.3 63.9,9.3 65.2,8.6 66.5,5.4 67.8,14.3 69.1,13.7 70.4,9.1 71.7,9.9 73.0,7.3 74.3,8.0 75.5,8.8 76.8,12.6 78.1,14.6 79.4,15.1 80.7,19.0 82.0,26.0" stroke="#3fb27f" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
   </summary>
-  <div class="chart" data-code="spx" data-kind="price" data-dg="2">
+  <div class="chart" data-code="spx" data-kind="price" data-dg="2" data-pe="spx_pe">
+  <div class="modes" role="group" aria-label="圖表類型"><button type="button" data-m="price" aria-pressed="true">指數</button><button type="button" data-m="pe" aria-pressed="false">本益比</button></div>
   <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
   <p class="readout" aria-live="polite">載入中…</p>
-  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
+  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p><p class="legend" data-for="pe" hidden><span><i style="border-color:#ecebe6"></i>期間平均</span><span><i style="border-color:#8f8d87"></i>±1 標準差</span><span>（multpl.com，每月、過去 12 個月盈餘；最近幾個月是用預估盈餘算的估計值，之後會修正）</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−11.6%</b>（最高點 2026-10-06，7,818.93）。從高點下跌到現在 1 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 6,343.72，最高 7,818.93，現在 6,910.39，在區間的 38% 位置">
+      <span class="bar"><i style="left:38.4%"></i></span>
+      <span class="lo">6,343.72<small>2026-03-30</small></span><span class="hi">7,818.93<small>2026-10-06</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>1970 年以來共 8 次。已回到前高的 8 次，從谷底回到前高的時間中位數約 17 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr><td>2022-01 → 2022-10</td><td class="num" style="color:#3fb27f">−25.4%</td><td class="num">9 個月</td><td class="num">15 個月</td></tr><tr><td>2020-02 → 2020-03</td><td class="num" style="color:#3fb27f">−33.9%</td><td class="num">1 個月</td><td class="num">5 個月</td></tr><tr><td>2007-10 → 2009-03</td><td class="num" style="color:#3fb27f">−56.8%</td><td class="num">17 個月</td><td class="num">4.1 年</td></tr><tr><td>2000-03 → 2002-10</td><td class="num" style="color:#3fb27f">−49.1%</td><td class="num">2.5 年</td><td class="num">4.6 年</td></tr><tr><td>1987-08 → 1987-12</td><td class="num" style="color:#3fb27f">−33.5%</td><td class="num">3 個月</td><td class="num">20 個月</td></tr><tr><td>1980-11 → 1982-08</td><td class="num" style="color:#3fb27f">−27.1%</td><td class="num">20 個月</td><td class="num">3 個月</td></tr><tr><td>1973-01 → 1974-10</td><td class="num" style="color:#3fb27f">−48.2%</td><td class="num">21 個月</td><td class="num">5.8 年</td></tr><tr><td>1970-01 → 1970-05</td><td class="num" style="color:#3fb27f">−25.9%</td><td class="num">5 個月</td><td class="num">8 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，1970 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details><details>
   <summary class="row">
     <span class="name">那斯達克 100<small>QQQ</small></span>
@@ -180,9 +263,49 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−19.9%</b>（最高點 2026-10-06，759.66）。從高點下跌到現在 1 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 558.28，最高 759.66，現在 608.45，在區間的 25% 位置">
+      <span class="bar"><i style="left:24.9%"></i></span>
+      <span class="lo">558.28<small>2026-03-30</small></span><span class="hi">759.66<small>2026-10-06</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>1999 年以來共 5 次。已回到前高的 5 次，從谷底回到前高的時間中位數約 4 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr><td>2025-02 → 2025-04</td><td class="num" style="color:#3fb27f">−22.9%</td><td class="num">2 個月</td><td class="num">3 個月</td></tr><tr><td>2021-11 → 2022-12</td><td class="num" style="color:#3fb27f">−35.6%</td><td class="num">13 個月</td><td class="num">12 個月</td></tr><tr><td>2020-02 → 2020-03</td><td class="num" style="color:#3fb27f">−28.6%</td><td class="num">26 天</td><td class="num">3 個月</td></tr><tr><td>2018-08 → 2018-12</td><td class="num" style="color:#3fb27f">−23.2%</td><td class="num">4 個月</td><td class="num">4 個月</td></tr><tr><td>2000-03 → 2002-10</td><td class="num" style="color:#3fb27f">−83.0%</td><td class="num">2.5 年</td><td class="num">13.9 年</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，1999 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details><details>
   <summary class="row">
-    <span class="name">費城半導體<small>SMH</small></span>
+    <span class="name">費城半導體指數<small>SOX</small></span>
+    <span class="value">8,408.59</span>
+    <span class="chg" style="color:#3fb27f">▼ 10.73%</span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,10.1 3.3,10.0 4.6,8.7 5.9,10.7 7.2,10.4 8.5,11.6 9.7,11.4 11.0,11.3 12.3,9.4 13.6,8.6 14.9,8.4 16.2,10.0 17.5,9.0 18.8,12.4 20.1,12.2 21.4,11.8 22.6,10.1 23.9,8.5 25.2,5.9 26.5,4.6 27.8,5.4 29.1,5.6 30.4,4.7 31.7,5.8 33.0,4.9 34.3,4.9 35.5,3.9 36.8,2.4 38.1,2.2 39.4,2.0 40.7,2.8 42.0,5.0 43.3,5.2 44.6,6.9 45.9,7.0 47.2,9.7 48.5,10.2 49.7,12.4 51.0,11.5 52.3,11.7 53.6,10.5 54.9,14.4 56.2,14.2 57.5,12.7 58.8,10.7 60.1,9.7 61.4,10.5 62.6,14.6 63.9,16.4 65.2,15.1 66.5,16.7 67.8,23.0 69.1,21.1 70.4,17.9 71.7,18.1 73.0,15.2 74.3,15.5 75.5,17.3 76.8,20.0 78.1,19.8 79.4,19.8 80.7,21.0 82.0,26.0" stroke="#3fb27f" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+  </summary>
+  <div class="chart" data-code="sox" data-kind="price" data-dg="2">
+  <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
+</div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−42.5%</b>（最高點 2026-06-22，14,634.72）。從高點下跌到現在 5 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 6,406.43，最高 14,634.72，現在 8,408.59，在區間的 24% 位置">
+      <span class="bar"><i style="left:24.3%"></i></span>
+      <span class="lo">6,406.43<small>2025-11-21</small></span><span class="hi">14,634.72<small>2026-06-22</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>1994 年以來共 8 次。已回到前高的 7 次，從谷底回到前高的時間中位數約 5 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-06 → 2026-11</td><td class="num" style="color:#3fb27f">−42.5%</td><td class="num">5 個月</td><td class="num">還沒回到</td></tr><tr><td>2024-07 → 2025-04</td><td class="num" style="color:#3fb27f">−39.7%</td><td class="num">9 個月</td><td class="num">5 個月</td></tr><tr><td>2021-12 → 2022-10</td><td class="num" style="color:#3fb27f">−46.5%</td><td class="num">10 個月</td><td class="num">14 個月</td></tr><tr><td>2020-02 → 2020-03</td><td class="num" style="color:#3fb27f">−35.0%</td><td class="num">28 天</td><td class="num">3 個月</td></tr><tr><td>2018-03 → 2018-12</td><td class="num" style="color:#3fb27f">−26.0%</td><td class="num">9 個月</td><td class="num">3 個月</td></tr><tr><td>2000-03 → 2008-11</td><td class="num" style="color:#3fb27f">−87.1%</td><td class="num">8.7 年</td><td class="num">9.0 年</td></tr><tr><td>1997-08 → 1998-10</td><td class="num" style="color:#3fb27f">−53.0%</td><td class="num">14 個月</td><td class="num">3 個月</td></tr><tr><td>1995-09 → 1996-07</td><td class="num" style="color:#3fb27f">−52.3%</td><td class="num">10 個月</td><td class="num">9 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，1994 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
+</details><details>
+  <summary class="row">
+    <span class="name">半導體 ETF<small>SMH</small></span>
     <span class="value">400.06</span>
     <span class="chg" style="color:#3fb27f">▼ 10.60%</span>
     <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,10.0 3.3,10.0 4.6,8.3 5.9,10.3 7.2,9.9 8.5,11.1 9.7,10.6 11.0,10.3 12.3,8.9 13.6,8.2 14.9,8.1 16.2,9.6 17.5,8.7 18.8,11.5 20.1,11.4 21.4,11.1 22.6,9.5 23.9,8.3 25.2,5.9 26.5,4.7 27.8,5.3 29.1,5.4 30.4,4.8 31.7,5.5 33.0,4.8 34.3,4.6 35.5,3.7 36.8,2.3 38.1,2.0 39.4,2.1 40.7,2.9 42.0,4.7 43.3,5.1 44.6,6.4 45.9,6.7 47.2,9.1 48.5,9.7 49.7,11.7 51.0,10.8 52.3,11.0 53.6,9.9 54.9,13.3 56.2,13.0 57.5,11.5 58.8,9.8 60.1,8.8 61.4,9.4 62.6,13.4 63.9,14.9 65.2,13.8 66.5,15.3 67.8,21.1 69.1,19.4 70.4,17.0 71.7,17.4 73.0,15.0 74.3,15.6 75.5,17.1 76.8,19.7 78.1,19.8 79.4,19.9 80.7,21.1 82.0,26.0" stroke="#3fb27f" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
@@ -192,6 +315,46 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−40.2%</b>（最高點 2026-06-22，668.91）。從高點下跌到現在 5 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 326.13，最高 668.91，現在 400.06，在區間的 22% 位置">
+      <span class="bar"><i style="left:21.6%"></i></span>
+      <span class="lo">326.13<small>2025-11-21</small></span><span class="hi">668.91<small>2026-06-22</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>2000 年以來共 6 次。已回到前高的 5 次，從谷底回到前高的時間中位數約 4 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-06 → 2026-11</td><td class="num" style="color:#3fb27f">−40.2%</td><td class="num">5 個月</td><td class="num">還沒回到</td></tr><tr><td>2024-07 → 2025-04</td><td class="num" style="color:#3fb27f">−36.0%</td><td class="num">9 個月</td><td class="num">3 個月</td></tr><tr><td>2021-12 → 2022-10</td><td class="num" style="color:#3fb27f">−45.3%</td><td class="num">10 個月</td><td class="num">9 個月</td></tr><tr><td>2020-02 → 2020-03</td><td class="num" style="color:#3fb27f">−33.6%</td><td class="num">30 天</td><td class="num">3 個月</td></tr><tr><td>2018-03 → 2018-12</td><td class="num" style="color:#3fb27f">−28.4%</td><td class="num">9 個月</td><td class="num">4 個月</td></tr><tr><td>2000-06 → 2008-11</td><td class="num" style="color:#3fb27f">−85.9%</td><td class="num">8.4 年</td><td class="num">9.0 年</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，2000 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
+</details><details>
+  <summary class="row">
+    <span class="name">輝達<small>NVDA</small></span>
+    <span class="value">125.53</span>
+    <span class="chg" style="color:#3fb27f">▼ 14.01%</span>
+    <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,7.5 3.3,8.2 4.6,4.4 5.9,6.6 7.2,5.9 8.5,6.6 9.7,5.1 11.0,4.3 12.3,3.9 13.6,4.9 14.9,5.3 16.2,6.4 17.5,6.4 18.8,8.0 20.1,7.7 21.4,7.3 22.6,6.2 23.9,5.6 25.2,4.5 26.5,4.2 27.8,4.9 29.1,5.1 30.4,5.0 31.7,4.2 33.0,4.5 34.3,4.3 35.5,3.8 36.8,3.1 38.1,2.1 39.4,2.0 40.7,2.4 42.0,3.8 43.3,4.1 44.6,4.7 45.9,4.3 47.2,5.8 48.5,6.6 49.7,7.3 51.0,6.7 52.3,6.8 53.6,5.6 54.9,7.7 56.2,8.0 57.5,6.9 58.8,6.5 60.1,7.0 61.4,7.4 62.6,9.3 63.9,9.8 65.2,8.9 66.5,10.3 67.8,14.2 69.1,13.1 70.4,14.8 71.7,16.8 73.0,15.8 74.3,17.4 75.5,18.1 76.8,19.5 78.1,19.7 79.4,20.6 80.7,21.7 82.0,26.0" stroke="#3fb27f" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+  </summary>
+  <div class="chart" data-code="nvda" data-kind="price" data-dg="2">
+  <div class="ranges" role="group" aria-label="選擇期間"><button type="button" data-r="5D" aria-pressed=false>5天</button><button type="button" data-r="1M" aria-pressed=false>1月</button><button type="button" data-r="3M" aria-pressed=false>3月</button><button type="button" data-r="6M" aria-pressed=false>6月</button><button type="button" data-r="YTD" aria-pressed=false>今年</button><button type="button" data-r="1Y" aria-pressed=true>1年</button><button type="button" data-r="3Y" aria-pressed=false>3年</button><button type="button" data-r="5Y" aria-pressed=false>5年</button><button type="button" data-r="MAX" aria-pressed=false>最長</button></div>
+  <p class="readout" aria-live="polite">載入中…</p>
+  <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
+</div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−47.5%</b>（最高點 2026-10-06，239.24）。從高點下跌到現在 1 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 125.53，最高 239.24，現在 125.53，在區間的 0% 位置">
+      <span class="bar"><i style="left:0.0%"></i></span>
+      <span class="lo">125.53<small>2026-11-20</small></span><span class="hi">239.24<small>2026-10-06</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>1999 年以來共 17 次（只列最近 8 次）。已回到前高的 16 次，從谷底回到前高的時間中位數約 2 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-10 → 2026-11</td><td class="num" style="color:#3fb27f">−47.5%</td><td class="num">1 個月</td><td class="num">還沒回到</td></tr><tr><td>2025-10 → 2026-03</td><td class="num" style="color:#3fb27f">−20.2%</td><td class="num">5 個月</td><td class="num">25 天</td></tr><tr><td>2025-01 → 2025-04</td><td class="num" style="color:#3fb27f">−36.9%</td><td class="num">3 個月</td><td class="num">3 個月</td></tr><tr><td>2024-06 → 2024-08</td><td class="num" style="color:#3fb27f">−27.0%</td><td class="num">2 個月</td><td class="num">2 個月</td></tr><tr><td>2021-11 → 2022-10</td><td class="num" style="color:#3fb27f">−66.4%</td><td class="num">10 個月</td><td class="num">7 個月</td></tr><tr><td>2021-02 → 2021-03</td><td class="num" style="color:#3fb27f">−24.4%</td><td class="num">20 天</td><td class="num">1 個月</td></tr><tr><td>2020-02 → 2020-03</td><td class="num" style="color:#3fb27f">−37.6%</td><td class="num">26 天</td><td class="num">2 個月</td></tr><tr><td>2018-10 → 2018-12</td><td class="num" style="color:#3fb27f">−56.1%</td><td class="num">3 個月</td><td class="num">14 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，1999 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details><details>
   <summary class="row">
     <span class="name">台積電 ADR<small>TSM</small></span>
@@ -204,6 +367,20 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−34.4%</b>（最高點 2026-10-05，485.80）。從高點下跌到現在 2 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 275.06，最高 485.80，現在 318.71，在區間的 21% 位置">
+      <span class="bar"><i style="left:20.7%"></i></span>
+      <span class="lo">275.06<small>2025-11-21</small></span><span class="hi">485.80<small>2026-10-05</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>1997 年以來共 12 次（只列最近 8 次）。已回到前高的 11 次，從谷底回到前高的時間中位數約 3 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-10 → 2026-11</td><td class="num" style="color:#3fb27f">−34.4%</td><td class="num">2 個月</td><td class="num">還沒回到</td></tr><tr><td>2026-06 → 2026-07</td><td class="num" style="color:#3fb27f">−21.5%</td><td class="num">29 天</td><td class="num">2 個月</td></tr><tr><td>2025-01 → 2025-04</td><td class="num" style="color:#3fb27f">−37.1%</td><td class="num">2 個月</td><td class="num">3 個月</td></tr><tr><td>2024-07 → 2024-08</td><td class="num" style="color:#3fb27f">−22.6%</td><td class="num">26 天</td><td class="num">2 個月</td></tr><tr><td>2022-01 → 2022-11</td><td class="num" style="color:#3fb27f">−57.1%</td><td class="num">10 個月</td><td class="num">16 個月</td></tr><tr><td>2021-02 → 2021-08</td><td class="num" style="color:#3fb27f">−22.8%</td><td class="num">6 個月</td><td class="num">5 個月</td></tr><tr><td>2020-01 → 2020-03</td><td class="num" style="color:#3fb27f">−27.2%</td><td class="num">2 個月</td><td class="num">4 個月</td></tr><tr><td>2018-01 → 2019-01</td><td class="num" style="color:#3fb27f">−25.9%</td><td class="num">11 個月</td><td class="num">9 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，1997 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details></section><section class="group"><h2>風向</h2><details>
   <summary class="row">
     <span class="name">VIX 恐慌指數<small>20 以下算平靜</small></span>
@@ -216,6 +393,13 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
 </div>
+  <div class="facts"><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 13.47，最高 35.89，現在 35.89，在區間的 100% 位置">
+      <span class="bar"><i style="left:100.0%"></i></span>
+      <span class="lo">13.47<small>2025-12-24</small></span><span class="hi">35.89<small>2026-11-20</small></span>
+    </div>
+  </div></div>
 </details><details>
   <summary class="row">
     <span class="name">美債 10 年殖利率<small>US10Y</small></span>
@@ -228,6 +412,13 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
 </div>
+  <div class="facts"><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 3.96%，最高 5.31%，現在 4.91%，在區間的 70% 位置">
+      <span class="bar"><i style="left:70.4%"></i></span>
+      <span class="lo">3.96%<small>2026-02-27</small></span><span class="hi">5.31%<small>2026-10-05</small></span>
+    </div>
+  </div></div>
 </details><details>
   <summary class="row">
     <span class="name">美元兌台幣<small>USD/TWD</small></span>
@@ -240,6 +431,13 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
 </div>
+  <div class="facts"><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 31.077，最高 33.109，現在 32.958，在區間的 93% 位置">
+      <span class="bar"><i style="left:92.6%"></i></span>
+      <span class="lo">31.077<small>2025-12-11</small></span><span class="hi">33.109<small>2026-11-06</small></span>
+    </div>
+  </div></div>
 </details></section><section class="group"><h2>其他資產</h2><details>
   <summary class="row">
     <span class="name">黃金<small>紐約期貨 · 美元／盎司</small></span>
@@ -252,6 +450,20 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−33.9%</b>（最高點 2026-01-29，5,318.4）。從高點下跌到現在 10 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 3,515.4，最高 5,318.4，現在 3,515.4，在區間的 0% 位置">
+      <span class="bar"><i style="left:0.0%"></i></span>
+      <span class="lo">3,515.4<small>2026-11-20</small></span><span class="hi">5,318.4<small>2026-01-29</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>2000 年以來共 5 次。已回到前高的 4 次，從谷底回到前高的時間中位數約 12 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2026-01 → 2026-11</td><td class="num" style="color:#3fb27f">−33.9%</td><td class="num">10 個月</td><td class="num">還沒回到</td></tr><tr><td>2020-08 → 2022-11</td><td class="num" style="color:#3fb27f">−21.2%</td><td class="num">2.2 年</td><td class="num">13 個月</td></tr><tr><td>2011-08 → 2015-12</td><td class="num" style="color:#3fb27f">−44.4%</td><td class="num">4.3 年</td><td class="num">4.6 年</td></tr><tr><td>2008-03 → 2008-11</td><td class="num" style="color:#3fb27f">−29.7%</td><td class="num">8 個月</td><td class="num">10 個月</td></tr><tr><td>2006-05 → 2006-10</td><td class="num" style="color:#3fb27f">−21.9%</td><td class="num">5 個月</td><td class="num">11 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，2000 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
 </details><details>
   <summary class="row">
     <span class="name">比特幣<small>BTC · 美元 · 週末也交易</small></span>
@@ -264,7 +476,21 @@ details[open] summary.row{background:#1c1f24}
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div><p class="legend" data-for="price"><span><i style="border-color:#e0a95a"></i>季線 60 日</span><span><i style="border-color:#7fa7d9"></i>年線 240 日</span></p>
 </div>
-</details></section><section class="group"><h2>景氣（每月）</h2><details>
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:#3fb27f">−51.8%</b>（最高點 2025-10-06，124,753）。這一波最深跌到 −53.1%（2026-06-30），從高點算起已 14 個月，還沒回到前高。</p></div><div class="fact">
+    <h3>52 週高低</h3>
+    <div class="range" role="img" aria-label="52 週最低 58,559，最高 96,929，現在 60,094，在區間的 4% 位置">
+      <span class="bar"><i style="left:4.0%"></i></span>
+      <span class="lo">58,559<small>2026-06-30</small></span><span class="hi">96,929<small>2026-01-14</small></span>
+    </div>
+  </div><div class="fact">
+    <h3>過去跌超過 20% 的幾次</h3>
+    <p>2014 年以來共 16 次（只列最近 8 次）。已回到前高的 15 次，從谷底回到前高的時間中位數約 1 個月。「回到前高」從谷底起算。</p>
+    <div class="tbl"><table>
+      <thead><tr><th scope="col">高點 → 谷底</th><th scope="col">最大跌幅</th><th scope="col">跌了多久</th><th scope="col">回到前高</th></tr></thead>
+      <tbody><tr class="now"><td>2025-10 → 2026-06</td><td class="num" style="color:#3fb27f">−53.1%</td><td class="num">9 個月</td><td class="num">還沒回到</td></tr><tr><td>2025-01 → 2025-04</td><td class="num" style="color:#3fb27f">−28.1%</td><td class="num">3 個月</td><td class="num">1 個月</td></tr><tr><td>2024-03 → 2024-09</td><td class="num" style="color:#3fb27f">−26.2%</td><td class="num">6 個月</td><td class="num">2 個月</td></tr><tr><td>2021-11 → 2022-11</td><td class="num" style="color:#3fb27f">−76.6%</td><td class="num">12 個月</td><td class="num">15 個月</td></tr><tr><td>2021-04 → 2021-07</td><td class="num" style="color:#3fb27f">−53.1%</td><td class="num">3 個月</td><td class="num">3 個月</td></tr><tr><td>2021-02 → 2021-02</td><td class="num" style="color:#3fb27f">−21.6%</td><td class="num">7 天</td><td class="num">11 天</td></tr><tr><td>2021-01 → 2021-01</td><td class="num" style="color:#3fb27f">−25.4%</td><td class="num">19 天</td><td class="num">12 天</td></tr><tr><td>2017-12 → 2018-12</td><td class="num" style="color:#3fb27f">−83.4%</td><td class="num">12 個月</td><td class="num">24 個月</td></tr></tbody>
+    </table></div>
+  </div><p class="note">用每天收盤價計算，2014 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
+</details></section><section class="group" id="ndc"><h2>景氣（每月）</h2><details>
   <summary class="row">
     <span class="name">景氣燈號<small>國發會 · 2026 年 9 月</small></span>
     <span class="value">41 分</span>
@@ -281,18 +507,22 @@ details[open] summary.row{background:#1c1f24}
   <p class="note">每月一筆，約每月 27 日公布上個月，所以比股市慢 1～2 個月。9 個構成項目裡有一項是股價指數。領先指標通常比燈號早幾個月轉彎。</p>
   </div>
 </details></section>
-      <div class="foot">
-        <p style="margin:0">點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）。</p>
-        <details>
-          <summary>晴雨怎麼判斷（草案）</summary>
-          <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
-        </details>
-        <p style="margin:6px 0 0"><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
-        <p style="margin:6px 0 0">只整理公開行情，不是投資建議。</p>
-      </div>
     </main>
   </div>
 </div>
+<footer class="site-footer">
+  <div class="foot">
+    <p>點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）。</p>
+    <details>
+      <summary>晴雨怎麼判斷（草案）</summary>
+      <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
+    </details>
+    <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
+    <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
+    <p>網頁更新於 2026-11-23 10:35（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
+  </div>
+</footer>
 <noscript><p class="warn" style="text-align:center">走勢圖需要開啟 JavaScript。</p></noscript>
 <script>
 const UP="#ef6a5f", DN="#3fb27f", NEUTRAL="#c9c7c0";
@@ -300,7 +530,7 @@ const MA_LINES = [{"n": 60, "color": "#e0a95a"}, {"n": 240, "color": "#7fa7d9"}]
 const PE_MEAN = "#ecebe6", PE_BAND = "#8f8d87";
 const NDC_COLORS = ["#3d6fd1", "#8fb8e8", "#3fb27f", "#f0a03c", "#e5484d"], NDC_NAMES = ["藍", "黃藍", "綠", "黃紅", "紅"];
 const NDC_LEAD = "#ecebe6", NDC_COIN = "#7fa7d9";
-const CMP_META = {"taiex": {"name": "加權指數", "kind": "price", "dg": 2, "suf": ""}, "2330": {"name": "台積電", "kind": "price", "dg": 1, "suf": ""}, "spx": {"name": "標普 500", "kind": "price", "dg": 2, "suf": ""}, "qqq": {"name": "那斯達克 100", "kind": "price", "dg": 2, "suf": ""}, "smh": {"name": "費城半導體", "kind": "price", "dg": 2, "suf": ""}, "tsm": {"name": "台積電 ADR", "kind": "price", "dg": 2, "suf": ""}, "vix": {"name": "VIX 恐慌指數", "kind": "point", "dg": 2, "suf": ""}, "us10y": {"name": "美債 10 年殖利率", "kind": "point", "dg": 3, "suf": "%"}, "usdtwd": {"name": "美元兌台幣", "kind": "point", "dg": 3, "suf": ""}, "gold": {"name": "黃金", "kind": "price", "dg": 1, "suf": ""}, "btc": {"name": "比特幣", "kind": "price", "dg": 0, "suf": ""}, "ndc": {"name": "景氣燈號", "kind": "score", "dg": 0, "suf": " 分"}}, CMP_COLORS = ["#ecebe6", "#7fa7d9", "#e0a95a", "#5fc4b8", "#d58fb5"], CMP_DEFAULT = ["taiex", "2330", "spx"];
+const CMP_META = {"taiex": {"name": "加權指數", "kind": "price", "dg": 2, "suf": ""}, "2330": {"name": "台積電", "kind": "price", "dg": 1, "suf": ""}, "spx": {"name": "標普 500", "kind": "price", "dg": 2, "suf": ""}, "qqq": {"name": "那斯達克 100", "kind": "price", "dg": 2, "suf": ""}, "sox": {"name": "費城半導體指數", "kind": "price", "dg": 2, "suf": ""}, "smh": {"name": "半導體 ETF", "kind": "price", "dg": 2, "suf": ""}, "nvda": {"name": "輝達", "kind": "price", "dg": 2, "suf": ""}, "tsm": {"name": "台積電 ADR", "kind": "price", "dg": 2, "suf": ""}, "vix": {"name": "VIX 恐慌指數", "kind": "point", "dg": 2, "suf": ""}, "us10y": {"name": "美債 10 年殖利率", "kind": "point", "dg": 3, "suf": "%"}, "usdtwd": {"name": "美元兌台幣", "kind": "point", "dg": 3, "suf": ""}, "gold": {"name": "黃金", "kind": "price", "dg": 1, "suf": ""}, "btc": {"name": "比特幣", "kind": "price", "dg": 0, "suf": ""}, "ndc": {"name": "景氣燈號", "kind": "score", "dg": 0, "suf": " 分"}}, CMP_COLORS = ["#ecebe6", "#7fa7d9", "#e0a95a", "#5fc4b8", "#d58fb5"], CMP_DEFAULT = ["taiex", "2330", "spx"];
 
 window.MW_SERIES = window.MW_SERIES || {};
 const DAY = 86400000, SVGNS = "http://www.w3.org/2000/svg";
@@ -312,7 +542,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611222237";
+    s.src = "series/" + code + ".js?v=202611231035";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);
@@ -396,7 +626,8 @@ function render(box) {
   const data = pe ? box._pe : box._data; if (!data) return;
   const kind = pe ? "pe" : box.dataset.kind, dg = pe ? 2 : +box.dataset.dg, suf = pe ? "" : (box.dataset.suf || "");
   const r = box._range, days = data.days, c = data.c, n = days.length;
-  const i0 = startIndex(days, r), last = n - 1;
+  const i0 = pe && data.monthly && (r === "5D" || r === "1M") ? Math.max(0, n - 2) : startIndex(days, r), last = n - 1;   // 每月資料：期間太短時至少畫最近兩個月
+  const estTag = i => pe && data.est != null && days[i] >= data.est ? '<span style="color:#e0a95a">（估計）</span>' : "";
   let stat = null;
   if (pe) {                                      // 平均和標準差用所選期間的每一天算（選 3 年＝3 年平均）
     let s = 0, s2 = 0, k = last - i0 + 1;
@@ -458,7 +689,7 @@ function render(box) {
   plot.replaceChildren(svg);
 
   const summary = pe
-    ? `<b>${RANGE_LABEL[r]}</b>　本益比 ${c[last].toFixed(2)} 倍　<span class="nw"><span style="color:#8f8d87">平均</span> ${stat.mean.toFixed(1)}</span>　<span class="nw"><span style="color:#8f8d87">位置</span> ${zText(c[last])}</span>`
+    ? `<b>${RANGE_LABEL[r]}</b>　本益比 ${c[last].toFixed(2)} 倍${estTag(last)}　<span class="nw"><span style="color:#8f8d87">平均</span> ${stat.mean.toFixed(1)}</span>　<span class="nw"><span style="color:#8f8d87">位置</span> ${zText(c[last])}</span>`
     : `<b>${RANGE_LABEL[r]}</b>　<span style="color:${ch.color}">${ch.text}</span>　<span style="color:#8f8d87">${iso(days[i0])} → ${iso(days[last])}</span>`;
   readout.innerHTML = summary;
 
@@ -469,7 +700,7 @@ function render(box) {
     vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i)); vline.setAttribute("visibility", "visible");
     dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(c[i])); dot.setAttribute("visibility", "visible");
     if (pe) {
-      readout.innerHTML = `<b>${iso(days[i])}</b>　本益比 ${c[i].toFixed(2)} 倍　<span class="nw"><span style="color:#8f8d87">較期間平均</span> ${zText(c[i])}</span>`;
+      readout.innerHTML = `<b>${iso(days[i])}</b>　本益比 ${c[i].toFixed(2)} 倍${estTag(i)}　<span class="nw"><span style="color:#8f8d87">較期間平均</span> ${zText(c[i])}</span>`;
       return;
     }
     const ci = change(c[i0], c[i], kind, dg);

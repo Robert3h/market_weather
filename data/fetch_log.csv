@@ -223,3 +223,20 @@ run_at,where,indicator,source,status,last_date,rows,note
 2026-11-23 14:43:02,GitHub Actions,2330_pe,TWSE BWIBBU,OK,2026-11-20,5217,
 2026-11-23 14:43:02,GitHub Actions,spx_pe,multpl.com,OK,2026-11-20,1872,最近 6 筆是估計值
 2026-11-23 14:43:04,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-09,537,
+2026-11-23 15:06:06,GitHub Actions,taiex,TWSE FMTQIK,OK,2026-11-23,7202,
+2026-11-23 15:06:10,GitHub Actions,2330,TWSE STOCK_DAY,OK,2026-11-23,6684,
+2026-11-23 15:06:10,GitHub Actions,tsm,Yahoo TSM,OK,2026-11-20,7325,
+2026-11-23 15:06:10,GitHub Actions,spx,Yahoo ^GSPC,OK,2026-11-20,14345,
+2026-11-23 15:06:10,GitHub Actions,qqq,Yahoo QQQ,OK,2026-11-20,6970,
+2026-11-23 15:06:10,GitHub Actions,smh,Yahoo SMH,OK,2026-11-20,6657,
+2026-11-23 15:06:10,GitHub Actions,sox,Yahoo ^SOX,OK,2026-11-20,8194,
+2026-11-23 15:06:10,GitHub Actions,nvda,Yahoo NVDA,OK,2026-11-20,7002,
+2026-11-23 15:06:10,GitHub Actions,vix,Yahoo ^VIX,OK,2026-11-20,9293,
+2026-11-23 15:06:10,GitHub Actions,us10y,Yahoo ^TNX,OK,2026-11-20,14243,
+2026-11-23 15:06:11,GitHub Actions,usdtwd,Yahoo TWD=X,OK,2026-11-20,5467,
+2026-11-23 15:06:11,GitHub Actions,gold,Yahoo GC=F,OK,2026-11-20,6582,
+2026-11-23 15:06:11,GitHub Actions,btc,Yahoo BTC-USD,OK,2026-11-22,4450,
+2026-11-23 15:06:16,GitHub Actions,2330_pe,TWSE BWIBBU,OK,2026-11-20,5217,
+2026-11-23 15:06:16,GitHub Actions,spx_pe,multpl.com,OK,2026-11-20,1872,最近 6 筆是估計值
+2026-11-23 15:06:16,GitHub Actions,events_fed,federalreserve.gov,OK,2026-09-16,60,60 筆連到聲明稿
+2026-11-23 15:06:17,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-09,537,

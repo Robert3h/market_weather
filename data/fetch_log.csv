@@ -291,3 +291,20 @@ run_at,where,indicator,source,status,last_date,rows,note
 2026-11-24 09:07:19,GitHub Actions,spx_pe,multpl.com,FAIL,,0,"URLError(ConnectionRefusedError(111, 'Connection refused'))"
 2026-11-24 09:07:19,GitHub Actions,events_fed,federalreserve.gov,OK,2026-09-16,60,60 筆連到聲明稿
 2026-11-24 09:07:21,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-09,537,
+2026-11-24 09:08:15,GitHub Actions,taiex,TWSE FMTQIK,OK,2026-11-23,7202,
+2026-11-24 09:08:19,GitHub Actions,2330,TWSE STOCK_DAY,OK,2026-11-23,6684,
+2026-11-24 09:08:19,GitHub Actions,tsm,Yahoo TSM,OK,2026-11-20,7325,
+2026-11-24 09:08:19,GitHub Actions,spx,Yahoo ^GSPC,OK,2026-11-23,14346,
+2026-11-24 09:08:20,GitHub Actions,qqq,Yahoo QQQ,OK,2026-11-20,6970,
+2026-11-24 09:08:20,GitHub Actions,smh,Yahoo SMH,OK,2026-11-20,6657,
+2026-11-24 09:08:20,GitHub Actions,sox,Yahoo ^SOX,OK,2026-11-23,8195,
+2026-11-24 09:08:20,GitHub Actions,nvda,Yahoo NVDA,OK,2026-11-20,7002,
+2026-11-24 09:08:21,GitHub Actions,vix,Yahoo ^VIX,OK,2026-11-23,9294,
+2026-11-24 09:08:21,GitHub Actions,us10y,Yahoo ^TNX,OK,2026-11-23,14244,
+2026-11-24 09:08:21,GitHub Actions,usdtwd,Yahoo TWD=X,OK,2026-11-23,5468,
+2026-11-24 09:08:21,GitHub Actions,gold,Yahoo GC=F,OK,2026-11-20,6582,
+2026-11-24 09:08:22,GitHub Actions,btc,Yahoo BTC-USD,OK,2026-11-22,4450,
+2026-11-24 09:08:26,GitHub Actions,2330_pe,TWSE BWIBBU,OK,2026-11-23,5218,
+2026-11-24 09:08:26,GitHub Actions,spx_pe,multpl.com,FAIL,,0,"URLError(ConnectionRefusedError(111, 'Connection refused'))"
+2026-11-24 09:08:27,GitHub Actions,events_fed,federalreserve.gov,OK,2026-09-16,60,60 筆連到聲明稿
+2026-11-24 09:08:28,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-09,537,

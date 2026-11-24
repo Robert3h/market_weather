@@ -545,7 +545,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
     <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
     <p><a href="logbook.html">維修日誌</a>（這個小工具每一次改了什麼、為什麼這樣改）</p>
     <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
-    <p>網頁更新於 2026-11-24 14:19（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p>網頁更新於 2026-11-24 14:28（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
   </div>
 </footer>
@@ -569,7 +569,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611241419";
+    s.src = "series/" + code + ".js?v=202611241428";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);

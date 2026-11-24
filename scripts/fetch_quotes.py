@@ -183,8 +183,17 @@ def fetch_yahoo(symbol, full=False):
             continue
         d = dt.datetime.fromtimestamp(ts + offset, dt.timezone.utc).date().isoformat()
         rows[d] = round(c, 4)
-    # 盤中還沒收盤的那一根不要（不能把盤中價當收盤）
+    # Yahoo 有時候最後一天的日線收盤是空的（2026-11-23 QQQ、NVDA 收盤後幾小時仍是 None），
+    # 但 meta 的 regularMarketPrice 已經是收盤價：確定那天已收盤（regularMarketTime ≥ 收盤時間）才補上。
     period = meta.get("currentTradingPeriod", {}).get("regular", {})
+    ts_list = res.get("timestamp") or []
+    if ts_list and closes and closes[-1] is None and period:
+        last_d = dt.datetime.fromtimestamp(ts_list[-1] + offset, dt.timezone.utc).date().isoformat()
+        mt, px = meta.get("regularMarketTime", 0), meta.get("regularMarketPrice")
+        mt_d = dt.datetime.fromtimestamp(mt + offset, dt.timezone.utc).date().isoformat() if mt else ""
+        if px and mt_d == last_d and mt >= period.get("end", 0) and last_d not in rows:
+            rows[last_d] = round(px, 4)
+    # 盤中還沒收盤的那一根不要（不能把盤中價當收盤）
     if period and time.time() < period.get("end", 0) and rows:
         today_local = dt.datetime.fromtimestamp(period["start"] + offset, dt.timezone.utc).date().isoformat()
         rows.pop(today_local, None)

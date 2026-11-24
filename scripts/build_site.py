@@ -550,6 +550,7 @@ window.addEventListener("resize", () => setTimeout(() => document.querySelectorA
 
 # ---------- 政策事件（2026-11-23，點子清單第四節第 6 點：做法 ①＋②） ----------
 # ① data/events_fed.csv：聯準會升降息，fetch_quotes.py 從聯準會利率表自動抓，每則都連到當天的聲明稿。
+# ①' data/events_cbc.csv：台灣央行理監事會升降息（2026-11-24），fetch_quotes.py 從央行新聞稿自動判斷，連到新聞稿；市場＝台股。
 # ② data/events_manual.csv：Robert 自己挑的事件（日期,市場,說明,連結）。Claude 不自己編事件和日期。
 #    可能用 Excel 存檔：UTF-8 和 Excel 預設的 Big5（cp950）都讀；日期 2025-04-02、2025/4/2 都可以；市場空白＝全部。
 # 走勢圖底部畫小三角形；手指或滑鼠靠近時，圖下方一行寫說明和原文連結（離開圖也留著，觸控才點得到連結）。
@@ -571,6 +572,11 @@ def load_events():
     if f.exists():
         with f.open(encoding="utf-8") as fh:
             out += [(r["date"], r["market"], r["text"], r["url"]) for r in csv.DictReader(fh)]
+    f = DATA_DIR / "events_cbc.csv"   # 台灣央行：只標升降息（維持不變的不畫，和聯準會一致）
+    if f.exists():
+        with f.open(encoding="utf-8") as fh:
+            out += [(r["date"], r["market"], r["text"], r["url"]) for r in csv.DictReader(fh)
+                    if r["kind"] in ("升息", "降息")]
     f = DATA_DIR / "events_manual.csv"
     if f.exists():
         for n, r in enumerate(_read_manual(f), 2):

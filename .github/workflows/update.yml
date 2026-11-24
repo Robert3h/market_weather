@@ -1,12 +1,17 @@
 # 每天自動抓行情、重建網站、部署到 GitHub Pages（GitHub Actions）
-# 排程用 UTC：台灣時間 = UTC + 8。GitHub 排程常會晚幾分鐘到半小時，正常。
+# 排程用 UTC：台灣時間 = UTC + 8。
+# GitHub 排程只是「盡量準時」：整點、半點最擠，常晚好幾小時甚至跳過（2026-11-23 15:00 那次晚 12 小時、
+# 11/24 06:30 那次沒跑）。所以時間避開 :00／:30，並多排幾次備用；行情沒變就不 commit，多跑不會多出 commit。
 # 網站放在 website/（2026-11-22 前叫 docs/）。Pages 設定的 Source 要選「GitHub Actions」。
 name: 每日更新
 
 on:
   schedule:
-    - cron: "0 7 * * 1-5"     # 台灣 15:00（週一～五）：台股收盤後
-    - cron: "30 22 * * 1-5"   # 台灣隔天 06:30（週二～六）：美股收盤後
+    - cron: "17 7 * * 1-5"    # 台灣 15:17（週一～五）：台股收盤後
+    - cron: "47 8 * * 1-5"    # 台灣 16:47：台股備用
+    - cron: "47 22 * * 1-5"   # 台灣隔天 06:47（週二～六）：美股收盤後
+    - cron: "47 23 * * 1-5"   # 台灣隔天 07:47：美股備用
+    - cron: "47 0 * * 2-6"    # 台灣 08:47（週二～六）：美股備用
   push:                        # 推上新程式或新的網站檔案（例如歷史版本）時，立刻重跑一次
     branches: [main]
     paths: ["scripts/**", ".github/workflows/**", "website/**"]
@@ -27,7 +32,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy_retry.outputs.page_url || steps.deploy_first.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +67,21 @@ jobs:
         with:
           path: website
 
+      # 2026-11-24 連續 3 次失敗：打包上傳成功，但 0.03 秒後部署就去找，GitHub 還沒登記好 →「No artifacts named github-pages」。
+      # 所以先等 15 秒再部署；還是失敗就再等 30 秒重試一次。
+      - name: 等打包好的網站登記完成
+        run: sleep 15
+
       - name: 部署到 GitHub Pages
-        id: deploy
+        id: deploy_first
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: 部署失敗就再等 30 秒
+        if: steps.deploy_first.outcome == 'failure'
+        run: sleep 30
+
+      - name: 部署到 GitHub Pages（重試）
+        id: deploy_retry
+        if: steps.deploy_first.outcome == 'failure'
         uses: actions/deploy-pages@v4

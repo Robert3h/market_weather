@@ -11,6 +11,8 @@
 台股兩個指標：較早的歷史用 Yahoo 補，近 13 個月以證交所官方數字為準（同一天會覆蓋 Yahoo）。
 另外抓國發會景氣燈號（每月）→ data/ndc_signal.csv（month,score,light,leading,coincident），每次整份覆蓋。
 聯準會升降息（政策事件，2026-11-23）→ data/events_fed.csv（date,effective,market,text,url），每次整份重寫，已查過的聲明稿網址沿用。
+台灣央行理監事會（政策事件，2026-11-24）→ data/events_cbc.csv（date,kind,market,text,url），kind＝升息／降息／維持／空白（判斷不出來）；
+平常只看央行列表第 1 頁，已讀過的新聞稿不再讀。
 """
 import argparse
 import csv
@@ -369,6 +371,87 @@ def save_fed_events(rows):
             w.writerow([d, eff, "全部", t, u])
 
 
+# 台灣央行理監事會（政策事件，2026-11-24）：央行網站「理監事會議決議」列表 → 每則決議新聞稿 → 找重貼現率那一句。
+# 只認「各調升／調降 X 個百分點 … 調整為／降為／提高至 Y%」和「維持」，判斷不出來的就略過（不硬猜）。
+# 2001 年以前的新聞稿用中文數字（四．六二五％），先換成阿拉伯數字再找。
+CBC_BASE = "https://www.cbc.gov.tw"
+CBC_LIST = CBC_BASE + "/tw/lp-357-1-{}-20.html"
+CBC_DIGITS = str.maketrans({**{c: str(i) for i, c in enumerate("〇一二三四五六七八九")},
+                            **{c: str(i) for i, c in enumerate("０１２３４５６７８９")},
+                            "○": "0", "．": ".", "‧": ".", "﹪": "%", "％": "%"})
+
+
+def cbc_bp_text(pp):
+    """0.125 → '0.125 個百分點（半碼）'；0.25 → '（1 碼）'"""
+    q = round(float(pp) / 0.25, 3)
+    size = "半碼" if q == 0.5 else f"{q:g} 碼"
+    return f"{float(pp):g} 個百分點（{size}）"
+
+
+def cbc_decision(url):
+    """回傳 ('升息'／'降息'／'維持'／'', 中文說明)。"""
+    t = get(url, timeout=60).decode("utf-8", "replace")
+    t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t)).replace("&nbsp;", " ").translate(CBC_DIGITS)
+    t = re.sub(r"(\d) +(?=[\d.%])|(?<=[\d.]) +(?=%)", r"\1", t)   # 「0.125 個」「2.00 ％」中間的空白
+    for s in re.findall(r"[^。]*重貼現率[^。]*。", t):
+        if "聯邦" in s or "FED" in s.upper():   # 講聯準會的句子不算
+            continue
+        m = re.search(r"(調升|調高|提高|調降|降低)[^。%]*?(\d+(?:\.\d+)?)\s*個?百分\s*點", s) or \
+            re.search(r"(調升|調高|提高|調降|降低)重貼現率[^。]*?各(\d+(?:\.\d+)?)個?百分點", s)
+        if m:
+            new = re.search(r"(?:調整後分別為|調整為|降為|提高至|調降為)\s*(?:年息)?\s*(\d+(?:\.\d+)?)\s*%", s)
+            if not new:
+                continue
+            word = "降息" if "降" in m.group(1) else "升息"
+            return word, f"台灣央行{word} {cbc_bp_text(m.group(2))}，重貼現率 {float(new.group(1)):g}%"
+        keep = re.search(r"維持[^。]*?年[息率]\s*(\d+(?:\.\d+)?)\s*%|維持[^。]*?年[息率][^。]*?為\s*(\d+(?:\.\d+)?)\s*%"
+                         r"|年[息率]\s*(\d+(?:\.\d+)?)\s*%[^。]*?不變|維持[^。]*?分別為年[息率]\s*(\d+(?:\.\d+)?)\s*%", s)
+        if keep and ("維持" in s or "不予調整" in s or "不變" in s):
+            lv = next(g for g in keep.groups() if g)
+            return "維持", f"台灣央行利率不變，重貼現率 {float(lv):g}%"
+    return "", ""
+
+
+def fetch_cbc_events(full=False):
+    """回傳 [(日期, 結果, 說明, 網址)]，舊到新。平常只看列表第 1 頁，新的才去讀新聞稿；CSV 不存在或 full 時翻完全部。"""
+    f = DATA_DIR / "events_cbc.csv"
+    old = {}
+    if f.exists() and not full:
+        with f.open(encoding="utf-8") as fh:
+            old = {r["url"]: (r["date"], r["kind"], r["text"]) for r in csv.DictReader(fh)}
+    seen, items = set(), []
+    for p in range(1, 60 if (full or not old) else 2):
+        page = get(CBC_LIST.format(p), timeout=60).decode("utf-8", "replace")
+        got = re.findall(r'<time>(\d{4}-\d{2}-\d{2})</time><a href="(/tw/cp-357-[^"]+)" title="([^"]+)"', page)
+        new = [g for g in got if g[1] not in seen]
+        if not new:   # 翻過最後一頁，網站會一直回最後一頁
+            break
+        for d, href, title in new:
+            seen.add(href)
+            if "決議" in title and "議事錄" not in title and "不動產" not in title and "審慎措施" not in title:
+                items.append((d, CBC_BASE + href))
+        time.sleep(0.3)
+    out = dict(old)
+    for d, url in items:
+        if url in out:
+            continue
+        kind, text = cbc_decision(url)
+        out[url] = (d, kind, text)
+        time.sleep(0.3)
+    rows = sorted((d, k, t, u) for u, (d, k, t) in out.items())
+    if sum(1 for r in rows if r[1]) < 20 and (full or not old):
+        raise ValueError(f"央行決議只解析出 {sum(1 for r in rows if r[1])} 筆，格式可能改了")
+    return rows
+
+
+def save_cbc_events(rows):
+    with (DATA_DIR / "events_cbc.csv").open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["date", "kind", "market", "text", "url"])
+        for d, k, t, u in rows:
+            w.writerow([d, k, "台股", t, u])
+
+
 def save_csv(code, rows, source):
     path = DATA_DIR / f"{code}.csv"
     old = {}
@@ -486,6 +569,19 @@ def main():
         except Exception as e:
             log(args.where, "events_fed", "federalreserve.gov", "FAIL", "", 0, repr(e)[:200])
             print(f"FAIL {'聯準會升降息':<18} {e!r}"[:200])
+
+    if not args.only or "events_cbc" in args.only:   # 政策事件：台灣央行理監事會
+        try:
+            rows = fetch_cbc_events(full=args.full)
+            save_cbc_events(rows)
+            chg = [r for r in rows if r[1] in ("升息", "降息")]
+            log(args.where, "events_cbc", "cbc.gov.tw", "OK", rows[-1][0], len(rows),
+                f"升降息 {len(chg)} 次、維持 {sum(1 for r in rows if r[1] == '維持')} 次")
+            print(f"OK   {'台灣央行理監事會':<18} 最新 {rows[-1][0]}  {rows[-1][2] or '（判斷不出結果）'}  （共 {len(rows)} 則，升降息 {len(chg)} 次）")
+            ok += 1
+        except Exception as e:
+            log(args.where, "events_cbc", "cbc.gov.tw", "FAIL", "", 0, repr(e)[:200])
+            print(f"FAIL {'台灣央行理監事會':<18} {e!r}"[:200])
 
     if not args.only or "ndc_signal" in args.only:   # 國發會景氣燈號（每月）
         try:

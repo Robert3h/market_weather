@@ -26,6 +26,7 @@ PUBLIC_PATHS = ["README.md", ".gitignore", ".github", "scripts", "data", "websit
 # 這些由 GitHub Actions 每天更新，以 GitHub 上的為準（2026-11-22 前網頁資料夾叫 docs）。
 # 不含 website/History/：歷史版本只在本機新增，整個 website/ 同步會把剛存的版本目錄蓋回舊的（2026-11-22 發生過）。
 SYNC_PATHS = ["data", "website/index.html", "website/series"]
+LOCAL_FIRST = ["data/events_manual.csv"]   # 同步時例外：Robert 手填，以本機為準
 SSL = ["-c", "http.sslBackend=schannel"] if os.name == "nt" else []
 
 HOOK = """#!/bin/sh
@@ -80,6 +81,11 @@ def sync_from_github():
     if not paths:
         return
     git("checkout", "origin/main", "--", *paths)
+    # Robert 在本機手填的檔案以本機為準，GitHub Actions 不會改它：拿回本機 commit 的版本
+    # （2026-11-24：沒有這步時，新填的 events_manual.csv 被 GitHub 上的空檔蓋掉）
+    keep = [p for p in LOCAL_FIRST if git("ls-tree", "HEAD", "--", p)]
+    if keep:
+        git("checkout", "HEAD", "--", *keep)
     clean_fetch_log()
     git("add", "--renormalize", "--", *paths)   # 重新加入，讓換行符號照本機設定統一
     if git("diff", "--cached", "--name-only", "--", *paths):

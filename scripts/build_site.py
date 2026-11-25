@@ -25,7 +25,8 @@ SPARK_DAYS = 63      # 小走勢圖：約 3 個月的交易日
 CALENDAR_DAYS = 30   # 天氣日曆格數
 HISTORY_DAYS = 400   # 晴雨只算最近這麼多個台股交易日（日曆、連續天數夠用）
 TPE = dt.timezone(dt.timedelta(hours=8))   # 一律用台灣時間（GitHub Actions 的機器是 UTC）
-DIGITS = {"taiex": 2, "spx": 2, "2330": 1, "vix": 2, "us10y": 3, "usdtwd": 3, "2330_pe": 2, "gold": 1, "btc": 0}   # 走勢圖數字的小數位
+YIELDS = ("us10y", "tw10y")   # 殖利率：顯示成 %，漲跌用「個百分點」（2026-11-24 加台債）
+DIGITS = {"taiex": 2, "otc": 2, "spx": 2, "dji": 2, "ixic": 2, "2330": 1, "vix": 2, "us10y": 3, "tw10y": 3, "usdtwd": 3, "2330_pe": 2, "gold": 1, "btc": 0}   # 走勢圖數字的小數位
 
 UP, DN, FLAT = "#ef6a5f", "#3fb27f", "#a7a59e"   # 紅漲綠跌（台股習慣），風向組用灰色
 WEATHER = {
@@ -38,8 +39,11 @@ WEATHER = {
 GROUP_IDS = {"台股": "list", "美股": "us", "風向": "wind", "其他資產": "other"}
 ROWS = [
     ("taiex", "加權指數", "TAIEX", "台股", "price"),
+    ("otc", "櫃買指數", "TPEx · 上櫃股票", "台股", "price"),   # 2026-11-24 加（櫃買中心）
     ("2330", "台積電", "2330", "台股", "price"),
     ("spx", "標普 500", "S&P 500", "美股", "price"),
+    ("dji", "道瓊工業", "DJIA", "美股", "price"),                 # 2026-11-24 加
+    ("ixic", "那斯達克綜合", "Nasdaq Composite", "美股", "price"),   # 2026-11-24 加（QQQ 是那斯達克 100）
     ("qqq", "那斯達克 100", "QQQ", "美股", "price"),
     ("sox", "費城半導體指數", "SOX", "美股", "price"),   # 2026-11-23 加：觀察名單
     ("smh", "半導體 ETF", "SMH", "美股", "price"),       # 2026-11-23 改名：SMH 追蹤 MVIS 半導體指數，不是費城半導體（SOX）
@@ -47,11 +51,12 @@ ROWS = [
     ("tsm", "台積電 ADR", "TSM", "美股", "price"),
     ("vix", "VIX 恐慌指數", "20 以下算平靜", "風向", "point"),
     ("us10y", "美債 10 年殖利率", "US10Y", "風向", "point"),
+    ("tw10y", "台債 10 年殖利率", "指標公債 · 櫃買中心", "風向", "point"),   # 2026-11-24 加
     ("usdtwd", "美元兌台幣", "USD/TWD", "風向", "point"),
     ("gold", "黃金", "紐約期貨 · 美元／盎司", "其他資產", "price"),   # 2026-11-22 加：只看走勢，和其他資產比較
     ("btc", "比特幣", "BTC · 美元 · 週末也交易", "其他資產", "price"),
 ]
-SOURCES_TEXT = "證交所（台股）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）"
+SOURCES_TEXT = "證交所（台股）、櫃買中心（櫃買指數、台債 10 年）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）"
 
 # 國發會景氣對策信號：燈號 → (顏色, 分數範圍)。顏色從冷到熱，和國發會圖一樣藍→綠→紅
 NDC_LIGHTS = [("藍", "#3d6fd1", "9–16"), ("黃藍", "#8fb8e8", "17–22"), ("綠", "#3fb27f", "23–31"),
@@ -116,11 +121,11 @@ def reason_text(day):
 
 # ---------- 格式 ----------
 def fmt_value(code, v):
-    if code in ("taiex", "spx"):
+    if code in ("taiex", "otc", "spx", "dji", "ixic"):
         return f"{v:,.2f}"
     if code == "2330":
         return f"{v:,.0f}" if v == int(v) else f"{v:,.1f}"
-    if code == "us10y":
+    if code in YIELDS:
         return f"{v:.2f}%"
     if code == "vix":
         return f"{v:.2f}"
@@ -143,7 +148,7 @@ def fmt_change(code, kind, series):
         return f"{arrow} {abs(c):.2f}%", UP if c > 0 else DN if c < 0 else FLAT
     c = b - a
     arrow = "▲" if c > 0 else "▼" if c < 0 else "－"
-    digits = 3 if code in ("us10y", "usdtwd") else 2
+    digits = 3 if code in (*YIELDS, "usdtwd") else 2
     return f"{arrow} {abs(c):.{digits}f}", FLAT
 
 
@@ -601,7 +606,7 @@ def chart_block(code, kind):
     buttons = "".join(
         f'<button type="button" data-r="{r}"{" aria-pressed=true" if r == "1Y" else " aria-pressed=false"}>{label}</button>'
         for r, label in RANGES)
-    suf = ' data-suf="%"' if code == "us10y" else ""
+    suf = ' data-suf="%"' if code in YIELDS else ""
     legend = ""
     if kind == "price":   # 均線圖例：季線、年線（顏色和 JS 的 MA_LINES 一致）
         legend = "".join(f'<span><i style="border-color:{col}"></i>{label}</span>' for _, col, label in MA_LINES)
@@ -615,7 +620,7 @@ def chart_block(code, kind):
                  '<button type="button" data-m="pe" aria-pressed="false">本益比</button></div>\n  ')
         legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
                    f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span></p>')
-    mk = "台股" if code in ("taiex", "2330", "usdtwd") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
+    mk = "台股" if code in ("taiex", "otc", "2330", "usdtwd", "tw10y") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
     return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}" data-mk="{mk}"{suf}{pe_attr}>
   {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
@@ -1649,7 +1654,7 @@ def build():
     logbook_page(w, built, links("logbook.html"))
     missing_html = f'<p class="warn">抓不到：{"、".join(missing)}</p>' if missing else ""
     ma_js = json.dumps([{"n": n, "color": col} for n, col, _ in MA_LINES])
-    cmp_meta = {code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code == "us10y" else ""}
+    cmp_meta = {code: {"name": name, "kind": kind, "dg": DIGITS.get(code, 2), "suf": "%" if code in YIELDS else ""}
                 for code, name, _, _, kind in ROWS if series_map[code]}
     if ndc:
         cmp_meta["ndc"] = {"name": "景氣燈號", "kind": "score", "dg": 0, "suf": " 分"}

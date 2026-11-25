@@ -44,13 +44,17 @@ INDICATORS = {
     "taiex":  ("台股加權指數", "twse_index", None),
     "2330":   ("台積電 2330", "twse_stock", "2330"),
     "tsm":    ("台積電 ADR (TSM)", "yahoo", "TSM"),
+    "otc":    ("櫃買指數", "tpex_index", None),            # 2026-11-24 加
     "spx":    ("標普 500", "yahoo", "^GSPC"),
+    "dji":    ("道瓊工業指數", "yahoo", "^DJI"),           # 2026-11-24 加
+    "ixic":   ("那斯達克綜合指數", "yahoo", "^IXIC"),      # 2026-11-24 加（QQQ 是那斯達克 100）
     "qqq":    ("QQQ", "yahoo", "QQQ"),
     "smh":    ("SMH 半導體 ETF", "yahoo", "SMH"),
     "sox":    ("費城半導體指數 (SOX)", "yahoo", "^SOX"),   # 2026-11-23 加：觀察名單
     "nvda":   ("輝達 NVDA", "yahoo", "NVDA"),              # 2026-11-23 加：觀察名單
     "vix":    ("VIX 恐慌指數", "yahoo", "^VIX"),
     "us10y":  ("美國 10 年期公債殖利率", "yahoo", "^TNX"),
+    "tw10y":  ("台灣 10 年期公債殖利率", "tpex_bond10y", None),   # 2026-11-24 加
     "usdtwd": ("美元兌台幣", "yahoo", "TWD=X"),
     "gold":   ("黃金（紐約期貨，美元／盎司）", "yahoo", "GC=F"),   # 2026-11-22 加：只看走勢，和其他資產比較
     "btc":    ("比特幣（美元）", "yahoo", "BTC-USD"),           # 週末也有交易
@@ -170,6 +174,82 @@ def fetch_twse_stock(code, months=TWSE_MONTHS):
     return rows, "TWSE STOCK_DAY"
 
 
+# 櫃買中心（2026-11-24 加）：櫃買指數「月查詢」一次一個月，有開高低收，1999 年下半年起；
+# 公債殖利率曲線：每天一個 .xls（2005-11 起），取「10年(Year)」那一列＝10 年期指標公債等殖成交量加權平均殖利率。
+TPEX = "https://www.tpex.org.tw"
+TPEX_INDEX_START = "199906"
+TPEX_BOND_START = "200511"
+TPEX_PAUSE = 0.5   # 櫃買中心請求間隔（秒）
+
+
+def tpex_get(path):
+    """櫃買中心偶爾直接斷線（2026-11-25 補歷史時遇到）：等 10 秒重試，最多 3 次。"""
+    for attempt in range(3):
+        try:
+            return get(TPEX + path, timeout=60)
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(10)
+
+
+def tpex_json(path):
+    j = json.loads(tpex_get(path))
+    if "tables" not in j:
+        raise ValueError(f"櫃買中心回應：{j.get('stat', j)}")
+    return j["tables"][0].get("data", [])
+
+
+def fetch_tpex_index(_, months):
+    """櫃買指數收盤 {date: close}。months＝往回抓幾個月（含這個月）。"""
+    rows = {}
+    for ym in month_starts(months):
+        for r in tpex_json(f"/www/zh-tw/indexInfo/inx?date={ym[:4]}/{ym[4:6]}/01&response=json"):
+            rows[r[0].replace("/", "-")] = num(r[4])
+        time.sleep(TPEX_PAUSE)
+    return rows, "TPEx 櫃買指數"
+
+
+def fetch_tpex_bond10y(_, months):
+    """台灣 10 年期公債殖利率（%）{date: yield}。已經在 CSV 裡的日子不重抓（每天一個檔，歷史很多）。"""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I 不會把程式所在資料夾放進搜尋路徑
+    from xls_reader import read_sheets
+    have = set()
+    f = DATA_DIR / "tw10y.csv"
+    if f.exists():
+        with f.open(encoding="utf-8") as fh:
+            have = {r["date"] for r in csv.DictReader(fh)}
+    rows, n = {}, 0
+    for ym in month_starts(months):
+        try:
+            files = tpex_json(f"/www/zh-tw/bond/govDaily2?date={ym[:4]}/{ym[4:6]}/01&fileCode=Curve&response=json")
+        except ValueError:
+            continue   # 那個月沒有資料
+        time.sleep(TPEX_PAUSE)
+        for roc, xls, _ods in files:
+            date = roc_to_date(roc)
+            if date in have:
+                continue
+            try:
+                raw = tpex_get(xls)
+            except Exception:
+                save_csv("tw10y", rows, "TPEx 公債殖利率曲線")   # 重試都失敗：先把讀到的存起來，下次接著抓
+                raise
+            cells = read_sheets(raw)[0]
+            time.sleep(TPEX_PAUSE)
+            for (r, c), v in cells.items():
+                if isinstance(v, str) and v.startswith("10年"):
+                    y = cells.get((r, c + 1))
+                    if isinstance(y, float) and 0 < y < 20:
+                        rows[date] = round(y, 4)
+                    break
+            n += 1
+            if n % 100 == 0:   # 補歷史要 2 小時：每 100 個檔先存一次，中途停掉下次會從這裡接著跑
+                save_csv("tw10y", rows, "TPEx 公債殖利率曲線")
+                print(f"     台債 10 年：已讀 {n} 個檔，到 {date}（已存檔）", flush=True)
+    return rows, "TPEx 公債殖利率曲線"
+
+
 def fetch_yahoo(symbol, full=False):
     """Yahoo Finance chart API（非正式服務，格式可能改）。
     full=True 抓全部歷史。注意：range=max 會被 Yahoo 自動改成每月一筆，所以要用 period1／period2。"""
@@ -202,7 +282,9 @@ def fetch_yahoo(symbol, full=False):
     return rows, f"Yahoo {symbol}"
 
 
-SOURCES = {"twse_index": fetch_twse_index, "twse_stock": fetch_twse_stock, "yahoo": fetch_yahoo}
+SOURCES = {"twse_index": fetch_twse_index, "twse_stock": fetch_twse_stock, "yahoo": fetch_yahoo,
+           "tpex_index": fetch_tpex_index, "tpex_bond10y": fetch_tpex_bond10y}
+TPEX_FULL = {"tpex_index": TPEX_INDEX_START, "tpex_bond10y": TPEX_BOND_START}   # 櫃買中心：全部歷史從這個月開始
 
 
 # 國發會「景氣指標及燈號」（政府資料開放平台 dataset 6099，每月一筆、1984 年起有燈號）。
@@ -508,6 +590,11 @@ def main():
                 print(f"     {name:<18} 歷史補到 {min(hist)}（{hsrc}）")
             if kind == "yahoo":
                 rows, source = fetch_yahoo(param, full=full)
+            elif kind in TPEX_FULL:   # 櫃買中心：沒有備案來源，失敗就記 FAIL
+                rows, source = SOURCES[kind](param, months_since(TPEX_FULL[kind]) if full else TWSE_MONTHS_DAILY)
+                if not rows and kind == "tpex_bond10y" and not full:
+                    print(f"     {name:<18} 沒有新的日子")
+                    continue
             else:
                 try:
                     rows, source = SOURCES[kind](param, TWSE_MONTHS if full else TWSE_MONTHS_DAILY)

@@ -86,13 +86,27 @@ def last_before(series, date):
 
 
 # ---------- 晴雨規則【草案】 ----------
+# 2026-11-25 Robert 選 (乙)：先看漲跌，VIX 高於 25 只「降一級」（原本是一律算雨，11/24 台股漲 8.99% 也變雨）。
+RULE_TEXT = "收紅＝晴、跌超過 1%＝雨、其他＝陰；VIX 高於 25 降一級（晴→陰、陰→雨），VIX 20～25 時晴最多算陰"
+
+
+def vix_adjust(base, vix):
+    if vix > 25:
+        return {"晴": "陰", "陰": "雨"}.get(base, "雨")
+    if vix >= 20 and base == "晴":
+        return "陰"
+    return base
+
+
 def judge_day(tw_chg, spx_chg, vix):
-    """晴：台股、標普都收紅且 VIX < 20；雨：任一跌超過 1% 或 VIX > 25；其他是陰。"""
-    if tw_chg <= -1 or spx_chg <= -1 or vix > 25:
-        return "雨"
-    if tw_chg > 0 and spx_chg > 0 and vix < 20:
-        return "晴"
-    return "陰"
+    """整體：任一跌超過 1% 是雨、兩邊都收紅是晴、其他是陰，再依 VIX 調整（vix_adjust）。"""
+    base = "雨" if tw_chg <= -1 or spx_chg <= -1 else "晴" if tw_chg > 0 and spx_chg > 0 else "陰"
+    return vix_adjust(base, vix)
+
+
+def judge_side(chg, vix):
+    """日曆上下半用（2026-11-24 Robert）：台股、美股各自套同一套規則。"""
+    return vix_adjust("雨" if chg <= -1 else "晴" if chg > 0 else "陰", vix)
 
 
 def weather_history(taiex, spx, vix):
@@ -106,6 +120,8 @@ def weather_history(taiex, spx, vix):
             continue
         tw_chg, spx_chg, v = pct(taiex, i), pct(spx, j), vix[k][1]
         out.append({"date": d, "us_date": spx[j][0], "tw": tw_chg, "spx": spx_chg, "vix": v,
+                    "tw_close": taiex[i][1], "spx_close": spx[j][1],
+                    "wt": judge_side(tw_chg, v), "wu": judge_side(spx_chg, v),
                     "w": judge_day(tw_chg, spx_chg, v)})
     return out
 
@@ -377,6 +393,26 @@ def compare_block(has_ndc):
   <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。{"景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減（背景顏色是燈號的分數區間），疊在一起時和其他指標一樣算變化 %，只供參考。線下方的色帶是每個月的燈號。" if has_ndc else ""}</p>
   </div>
 </div>"""
+
+
+# 晴雨日曆：滑過、點一下或用鍵盤選到格子，就在日曆下方浮出那天的收盤（2026-11-24 Robert）
+CAL_JS = r"""
+(() => {
+  const wrap = document.querySelector(".calwrap"); if (!wrap) return;
+  const tip = wrap.querySelector(".caltip"); let pinned = null;
+  const show = c => { tip.textContent = c.dataset.tip; tip.hidden = false;
+    tip.style.top = (c.offsetTop + c.offsetHeight + 6) + "px"; };
+  const hide = () => { if (!pinned) tip.hidden = true; };
+  wrap.querySelectorAll(".cell").forEach(c => {
+    c.addEventListener("mouseenter", () => show(c));
+    c.addEventListener("mouseleave", hide);
+    c.addEventListener("focus", () => show(c));
+    c.addEventListener("blur", hide);
+    c.addEventListener("click", e => { e.stopPropagation(); pinned = pinned === c ? null : c; pinned ? show(c) : (tip.hidden = true); });
+  });
+  document.addEventListener("click", () => { pinned = null; tip.hidden = true; });
+})();
+"""
 
 
 CMP_JS = r"""
@@ -1591,10 +1627,20 @@ def build():
     # 天氣日曆
     cal = hist[-CALENDAR_DAYS:]
     counts = {k: sum(1 for d in cal if d["w"] == k) for k in "晴陰雨"}
-    cells = "".join(
-        f'<span class="cell{" today" if i == len(cal) - 1 else ""}" style="background:{WEATHER[d["w"]]["cell"]}" '
-        f'title="{md(d["date"])} {d["w"]}" role="img" aria-label="{md(d["date"])} {d["w"]}"></span>'
-        for i, d in enumerate(cal))
+    ct = {k: sum(1 for d in cal if d["wt"] == k) for k in "晴陰雨"}   # 台股（上半）
+    cu = {k: sum(1 for d in cal if d["wu"] == k) for k in "晴陰雨"}   # 美股（下半）
+
+    def cal_cell(i, d):   # 上半台股、下半前一晚美股；滑過／點一下看細節（2026-11-24 Robert）
+        a, b = WEATHER[d["wt"]]["cell"], WEATHER[d["wu"]]["cell"]
+        sgn = lambda c: f"{'▲' if c > 0 else '▼' if c < 0 else '－'} {abs(c):.2f}%"
+        tip = (f"{md(d['date'])} 台股 {d['wt']}｜加權 {d['tw_close']:,.2f} {sgn(d['tw'])}&#10;"
+               f"{md(d['us_date'])} 美股 {d['wu']}｜標普 {d['spx_close']:,.2f} {sgn(d['spx'])}&#10;"
+               f"VIX {d['vix']:.1f}" + ("（高於 25，天氣降一級）" if d["vix"] > 25 else "（20～25，晴最多算陰）" if d["vix"] >= 20 else "")
+               + f"&#10;規則：{RULE_TEXT}")
+        return (f'<button type="button" class="cell{" today" if i == len(cal) - 1 else ""}" '
+                f'style="background:linear-gradient({a} 0 48%,transparent 48% 52%,{b} 52% 100%)" data-tip="{tip}" '
+                f'aria-label="{md(d["date"])} 台股{d["wt"]}、美股{d["wu"]}"></button>')
+    cells = "".join(cal_cell(i, d) for i, d in enumerate(cal))
 
     # 值得注意
     notes = notable(series_map)
@@ -1701,7 +1747,12 @@ main{{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px}}
 h2{{margin:0;font-size:13px;font-weight:600;color:#a7a59e;letter-spacing:.06em}}
 .calhead{{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#8f8d87}}
 .cal{{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;margin-top:4px}}
-.cell{{aspect-ratio:1;border-radius:4px}}
+.cell{{aspect-ratio:1;border-radius:4px;border:0;padding:0;cursor:pointer;min-width:24px}}
+.cell:hover,.cell:focus-visible{{outline:2px solid #d97757;outline-offset:1px}}
+.calhead span{{text-align:right;line-height:1.5}}
+.calwrap{{position:relative}}
+.caltip{{position:absolute;z-index:5;left:0;right:0;background:#1d1f24;color:#ecebe6;border:1px solid #3a3d44;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;white-space:pre-line;box-shadow:0 6px 18px rgba(0,0,0,.35)}}
+.calnote{{margin:6px 0 0;font-size:12px;color:#8f8d87}}
 .cell.today{{outline:2px solid #ecebe6;outline-offset:1px}}
 .group h2{{margin-bottom:6px}}
 details{{border-top:1px solid #262930}}
@@ -1828,8 +1879,9 @@ tr.inside td{{white-space:normal;font-size:12px;line-height:1.6;color:#8f8d87;pa
       </div>
       {notes_html}
       <section class="block">
-        <div class="calhead"><h2>最近 {len(cal)} 個交易日</h2><span>晴 {counts['晴']} · 陰 {counts['陰']} · 雨 {counts['雨']}</span></div>
-        <div class="cal">{cells}</div>
+        <div class="calhead"><h2>最近 {len(cal)} 個交易日</h2><span>台股 晴 {ct['晴']} · 陰 {ct['陰']} · 雨 {ct['雨']}<br>美股 晴 {cu['晴']} · 陰 {cu['陰']} · 雨 {cu['雨']}</span></div>
+        <div class="calwrap"><div class="cal">{cells}</div><div class="caltip" role="status" hidden></div></div>
+        <p class="calnote">每格上半＝台股當天、下半＝前一晚美股；滑過或點一下看收盤</p>
       </section>
     </aside>
     <main>
@@ -1842,7 +1894,7 @@ tr.inside td{{white-space:normal;font-size:12px;line-height:1.6;color:#8f8d87;pa
     <p>點任一行展開走勢，可切換 5 天到最長；手指或滑鼠移到圖上看當天數字。小走勢圖是近 3 個月。資料來源：{SOURCES_TEXT}。</p>
     <details>
       <summary>晴雨怎麼判斷（草案）</summary>
-      <p style="margin:6px 0 0">晴：台股和前一晚標普 500 都收紅，而且 VIX 低於 20。<br>雨：台股或標普 500 有一個跌超過 1%，或 VIX 高於 25。<br>陰：其他情況。</p>
+      <p style="margin:6px 0 0">先看漲跌：台股和前一晚標普 500 都收紅是晴；有一個跌超過 1% 是雨；其他是陰。<br>再看 VIX：高於 25 降一級（晴→陰、陰→雨）；在 20～25 之間時，晴最多算陰。<br>日曆每格上半是台股、下半是前一晚美股，各自用同一套規則；滑過或點一下格子看收盤。</p>
     </details>
     <p><a href="guide.html">使用教學</a>（雙宇和子琦帶你看懂這個網站）</p>
     <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
@@ -1865,6 +1917,7 @@ const CMP_META = {cmp_meta}, CMP_COLORS = {json.dumps(CMP_COLORS)}, CMP_DEFAULT 
 {NDC_JS}
 {CMP_JS}
 {OPEN_HASH_JS}
+{CAL_JS}
 </script>
 </body>
 </html>

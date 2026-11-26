@@ -50,7 +50,33 @@ summary::-webkit-details-marker{display:none}
 .row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr);align-items:center;gap:12px;min-height:52px;padding:4px 6px;border-radius:4px}
 summary.row:hover{background:var(--c-surface2)}
 summary.row:focus-visible{outline:2px solid var(--c-accent);outline-offset:-2px}
-details[open] summary.row{background:var(--c-surface2)}
+details[open]>summary.row{background:var(--c-surface2)}
+.overview{display:flex;flex-direction:column;gap:6px}
+.ovhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ovhead span{font-size:12px;color:var(--c-muted2)}
+.overview h3{margin:8px 0 0;font-size:12px;font-weight:600}
+.overview h3 a{display:inline-flex;align-items:center;min-height:28px;color:var(--c-muted);text-decoration:none;letter-spacing:.06em}
+.overview h3 a::after{content:"›";margin-left:6px;color:var(--c-faint)}
+.overview h3 a:hover{color:var(--c-accent)}
+.overview a:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.tile{display:flex;flex-direction:column;gap:2px;min-height:76px;padding:8px 10px;border-radius:6px;color:var(--c-ink);text-decoration:none;font-variant-numeric:tabular-nums;border:1px solid transparent}
+a.tile:hover{border-color:var(--c-ink)}
+.tile .tn{font-size:12px;line-height:1.4}
+.tile .tc{font-size:16px;font-weight:700;white-space:nowrap}
+.tile .tv{font-size:12px;color:var(--c-ink2)}
+.tile small{font-size:12px}
+.tile.nodata{background:var(--c-surface3)}
+details.grp{border-top:1px solid var(--c-rule3)}
+.ghead{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:4px 6px;border-radius:4px}
+.ghead:hover{background:var(--c-surface2)}
+.ghead:focus-visible{outline:2px solid var(--c-accent);outline-offset:-2px}
+.ghead h2{margin:0;font-size:15px;color:var(--c-ink);letter-spacing:.04em;display:flex;align-items:baseline;gap:8px}
+.ghead h2::before{content:"▸";display:inline-block;width:12px;color:var(--c-muted2);font-size:12px;transition:transform .15s}
+details.grp[open]>.ghead h2::before{transform:rotate(90deg)}
+.ghead h2 small{font-size:12px;font-weight:400;color:var(--c-muted2)}
+.gstat{font-size:13px;color:var(--c-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gstat .avg{margin-left:8px}
 .name{display:flex;flex-direction:column;font-size:15px}
 .name small{font-size:12px;color:var(--c-muted2)}
 .name small.stale,.stale{color:var(--c-ma60)}
@@ -154,7 +180,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
 <header class="site-header">
   <div class="hwrap">
     <a class="brand" href="#top"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="sr">今天雨，</span>market_weather</a>
-    <nav aria-label="跳到這一頁的區塊"><a href="#today">今天</a><a href="#compare">比較</a><a href="#list">指標</a><a href="#ndc">景氣</a><a href="backtest.html">回測</a><a href="guide.html">手冊</a></nav>
+    <nav aria-label="跳到這一頁的區塊"><a href="#today">今天</a><a href="#overview">指標</a><a href="#compare">比較</a><a href="#ndc">景氣</a><a href="backtest.html">回測</a><a href="guide.html">手冊</a></nav>
     <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button>
   </div>
 </header>
@@ -177,7 +203,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
       </section>
     </aside>
     <main>
-      <section class="group" id="compare"><h2>比較</h2><div class="cmp">
+      <section class="overview" id="overview"><div class="ovhead"><h2>全部 17 個指標</h2><span>顏色深淺＝今天漲跌幅大小 · 點一下看走勢</span></div><h3><a href="#list">台股</a></h3><div class="tiles"><a class="tile" href="#i-taiex" style="background:rgba(239,106,95,0.38)"><span class="tn">加權指數</span><b class="tc">▲ 2.50%</b><span class="tv">39,151.81</span></a><a class="tile" href="#i-otc" style="background:rgba(239,106,95,0.55)"><span class="tn">櫃買指數</span><b class="tc">▲ 5.03%</b><span class="tv">289.84</span></a><a class="tile" href="#i-2330" style="background:rgba(63,178,127,0.13)"><span class="tn">台積電</span><b class="tc">▼ 0.23%</b><span class="tv">2,145</span></a></div><h3><a href="#us">美股</a></h3><div class="tiles"><a class="tile" href="#i-spx" style="background:rgba(63,178,127,0.13)"><span class="tn">標普 500</span><b class="tc">▼ 0.25%</b><span class="tv">7,182.78</span></a><a class="tile" href="#i-dji" style="background:rgba(239,106,95,0.14)"><span class="tn">道瓊工業</span><b class="tc">▲ 0.33%</b><span class="tv">50,182.95</span></a><a class="tile" href="#i-ixic" style="background:rgba(63,178,127,0.17)"><span class="tn">那斯達克綜合</span><b class="tc">▼ 0.62%</b><span class="tv">23,585.80</span></a><a class="tile" href="#i-qqq" style="background:rgba(63,178,127,0.17)"><span class="tn">那斯達克 100</span><b class="tc">▼ 0.65%</b><span class="tv">633.93</span></a><a class="tile" href="#i-sox" style="background:rgba(63,178,127,0.17)"><span class="tn">費城半導體指數</span><b class="tc">▼ 0.65%</b><span class="tv">8,774.86</span></a><a class="tile" href="#i-smh" style="background:rgba(63,178,127,0.21)"><span class="tn">半導體 ETF</span><b class="tc">▼ 1.01%</b><span class="tv">422.46</span></a><a class="tile" href="#i-nvda" style="background:rgba(63,178,127,0.54)"><span class="tn">輝達</span><b class="tc">▼ 3.91%</b><span class="tv">149.30</span></a><a class="tile" href="#i-tsm" style="background:rgba(63,178,127,0.32)"><span class="tn">台積電 ADR</span><b class="tc">▼ 1.96%</b><span class="tv">342.34</span></a></div><h3><a href="#wind">風向</a></h3><div class="tiles"><a class="tile" href="#i-vix" style="background:var(--c-surface3)"><span class="tn">VIX 恐慌指數</span><b class="tc">▲ 1.93</b><span class="tv">28.29</span></a><a class="tile" href="#i-us10y" style="background:var(--c-surface3)"><span class="tn">美債 10 年殖利率</span><b class="tc">▼ 0.056</b><span class="tv">4.85%</span></a><a class="tile" href="#i-tw10y" style="background:var(--c-surface3)"><span class="tn">台債 10 年殖利率</span><b class="tc">－ 0.000</b><span class="tv">1.93%</span></a><a class="tile" href="#i-usdtwd" style="background:var(--c-surface3)"><span class="tn">美元兌台幣</span><b class="tc">▲ 0.072</b><span class="tv">32.921</span></a></div><h3><a href="#other">其他資產</a></h3><div class="tiles"><a class="tile" href="#i-gold" style="background:rgba(239,106,95,0.30)"><span class="tn">黃金</span><b class="tc">▲ 1.76%</b><span class="tv">3,597.9</span></a><a class="tile" href="#i-btc" style="background:rgba(239,106,95,0.22)"><span class="tn">比特幣</span><b class="tc">▲ 1.06%</b><span class="tv">60,378</span></a></div><h3><a href="#ndc">景氣（每月）</a></h3><div class="tiles"><a class="tile" href="#ndc" style="background:rgba(229,72,77,0.35)"><span class="tn">景氣燈號</span><b class="tc">紅燈 41 分</b><span class="tv">9 月</span></a></div></section><section class="group" id="compare"><h2>比較</h2><div class="cmp">
   <p class="hint">勾選最多 5 個指標，放在一起看走勢</p>
   <div class="chips" role="group" aria-label="勾選要比較的指標"><button type="button" data-c="taiex" aria-pressed="false">加權指數</button><button type="button" data-c="otc" aria-pressed="false">櫃買指數</button><button type="button" data-c="2330" aria-pressed="false">台積電</button><button type="button" data-c="spx" aria-pressed="false">標普 500</button><button type="button" data-c="dji" aria-pressed="false">道瓊工業</button><button type="button" data-c="ixic" aria-pressed="false">那斯達克綜合</button><button type="button" data-c="qqq" aria-pressed="false">那斯達克 100</button><button type="button" data-c="sox" aria-pressed="false">費城半導體指數</button><button type="button" data-c="smh" aria-pressed="false">半導體 ETF</button><button type="button" data-c="nvda" aria-pressed="false">輝達</button><button type="button" data-c="tsm" aria-pressed="false">台積電 ADR</button><button type="button" data-c="vix" aria-pressed="false">VIX 恐慌指數</button><button type="button" data-c="us10y" aria-pressed="false">美債 10 年殖利率</button><button type="button" data-c="tw10y" aria-pressed="false">台債 10 年殖利率</button><button type="button" data-c="usdtwd" aria-pressed="false">美元兌台幣</button><button type="button" data-c="gold" aria-pressed="false">黃金</button><button type="button" data-c="btc" aria-pressed="false">比特幣</button><button type="button" data-c="ndc" aria-pressed="false">景氣燈號（每月）</button></div>
   <button type="button" class="open" aria-expanded="false" aria-controls="cmp-body">看比較圖<span aria-hidden="true">▾</span></button>
@@ -188,7 +214,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
   <div class="plot"></div>
   <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減（背景顏色是燈號的分數區間），疊在一起時和其他指標一樣算變化 %，只供參考。線下方的色帶是每個月的燈號。</p>
   </div>
-</div></section><section class="group" id="list"><h2>台股</h2><details id="i-taiex">
+</div></section><details class="grp" id="list" open><summary class="ghead"><h2>台股<small>3 個</small></h2><span class="gstat"><span style="color:var(--c-up)">▲2</span> <span style="color:var(--c-down)">▼1</span><span class="avg">平均 <span style="color:var(--c-up)">+2.43%</span></span></span></summary><details id="i-taiex">
   <summary class="row">
     <span class="name">加權指數<small>TAIEX</small></span>
     <span class="value">39,151.81</span>
@@ -270,7 +296,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
       <tbody><tr class="now"><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20733" data-b="20783" data-label="從高點到現在 2 個月">2026-10 → 2026-11</button></td><td class="num" style="color:var(--c-down)">−22.6%</td><td class="num">1 個月</td><td class="num">還沒回到</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20110" data-b="20287" data-label="水面下 6 個月">2025-01 → 2025-04</button></td><td class="num" style="color:var(--c-down)">−30.8%</td><td class="num">3 個月</td><td class="num">3 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="19915" data-b="20014" data-label="水面下 3 個月">2024-07 → 2024-08</button></td><td class="num" style="color:var(--c-down)">−24.5%</td><td class="num">25 天</td><td class="num">2 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="19009" data-b="19768" data-label="水面下 2.1 年">2022-01 → 2022-10</button></td><td class="num" style="color:var(--c-down)">−45.7%</td><td class="num">9 個月</td><td class="num">16 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18275" data-b="18453" data-label="水面下 6 個月">2020-01 → 2020-03</button></td><td class="num" style="color:var(--c-down)">−28.3%</td><td class="num">2 個月</td><td class="num">4 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="17554" data-b="18008" data-label="水面下 15 個月">2018-01 → 2019-01</button></td><td class="num" style="color:var(--c-down)">−21.8%</td><td class="num">11 個月</td><td class="num">4 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="16491" data-b="16870" data-label="水面下 12 個月">2015-02 → 2015-08</button></td><td class="num" style="color:var(--c-down)">−25.6%</td><td class="num">6 個月</td><td class="num">7 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="10998" data-b="15426" data-label="水面下 12.1 年">2000-02 → 2002-10</button></td><td class="num" style="color:var(--c-down)">−68.0%</td><td class="num">2.7 年</td><td class="num">9.5 年</td></tr><tr class="inside"><td colspan="4">這段期間裡，還從 2007-07-13（72.3）跌到 2008-11-20（36.6），<span style="color:var(--c-down)">−49.3%</span>；因為沒有回到前高，不另外算一次。</td></tr></tbody>
     </table></div>
   </div><p class="note">用每天收盤價計算，2000 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
-</details></section><section class="group" id="us"><h2>美股</h2><details id="i-spx">
+</details></details><details class="grp" id="us" open><summary class="ghead"><h2>美股<small>8 個</small></h2><span class="gstat"><span style="color:var(--c-up)">▲1</span> <span style="color:var(--c-down)">▼7</span><span class="avg">平均 <span style="color:var(--c-down)">-1.09%</span></span></span></summary><details id="i-spx">
   <summary class="row">
     <span class="name">標普 500<small>S&P 500</small></span>
     <span class="value">7,182.78</span>
@@ -487,7 +513,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
       <tbody><tr class="now"><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20731" data-b="20782" data-label="從高點到現在 2 個月">2026-10 → 2026-11</button></td><td class="num" style="color:var(--c-down)">−34.4%</td><td class="num">2 個月</td><td class="num">還沒回到</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20634" data-b="20731" data-label="水面下 3 個月">2026-06 → 2026-07</button></td><td class="num" style="color:var(--c-down)">−21.5%</td><td class="num">29 天</td><td class="num">2 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20111" data-b="20266" data-label="水面下 5 個月">2025-01 → 2025-04</button></td><td class="num" style="color:var(--c-down)">−37.1%</td><td class="num">2 個月</td><td class="num">3 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="19914" data-b="20010" data-label="水面下 3 個月">2024-07 → 2024-08</button></td><td class="num" style="color:var(--c-down)">−22.6%</td><td class="num">26 天</td><td class="num">2 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="19006" data-b="19788" data-label="水面下 2.1 年">2022-01 → 2022-11</button></td><td class="num" style="color:var(--c-down)">−57.1%</td><td class="num">10 個月</td><td class="num">16 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18674" data-b="19006" data-label="水面下 11 個月">2021-02 → 2021-08</button></td><td class="num" style="color:var(--c-down)">−22.8%</td><td class="num">6 個月</td><td class="num">5 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18275" data-b="18449" data-label="水面下 6 個月">2020-01 → 2020-03</button></td><td class="num" style="color:var(--c-down)">−27.2%</td><td class="num">2 個月</td><td class="num">4 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="17553" data-b="18165" data-label="水面下 20 個月">2018-01 → 2019-01</button></td><td class="num" style="color:var(--c-down)">−25.9%</td><td class="num">11 個月</td><td class="num">9 個月</td></tr></tbody>
     </table></div>
   </div><p class="note">用每天收盤價計算，1997 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
-</details></section><section class="group" id="wind"><h2>風向</h2><details id="i-vix">
+</details></details><details class="grp" id="wind"><summary class="ghead"><h2>風向<small>4 個</small></h2><span class="gstat"><span>▲2 ▼1</span></span></summary><details id="i-vix">
   <summary class="row">
     <span class="name">VIX 恐慌指數<small>20 以下算平靜</small></span>
     <span class="value">28.29</span>
@@ -567,11 +593,11 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
       <span class="lo">31.077<small>2025-12-11</small></span><span class="hi">33.109<small>2026-11-06</small></span>
     </div>
   </div></div>
-</details></section><section class="group" id="other"><h2>其他資產</h2><details id="i-gold">
+</details></details><details class="grp" id="other"><summary class="ghead"><h2>其他資產<small>2 個</small></h2><span class="gstat"><span style="color:var(--c-up)">▲2</span> <span style="color:var(--c-down)">▼0</span><span class="avg">平均 <span style="color:var(--c-up)">+1.41%</span></span></span></summary><details id="i-gold">
   <summary class="row">
     <span class="name">黃金<small>紐約期貨 · 美元／盎司</small></span>
-    <span class="value">3,597.1</span>
-    <span class="chg" style="color:var(--c-up)">▲ 1.73%</span>
+    <span class="value">3,597.9</span>
+    <span class="chg" style="color:var(--c-up)">▲ 1.76%</span>
     <svg class="spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="2.0,3.4 3.3,5.4 4.6,4.9 5.9,2.0 7.2,3.5 8.5,4.4 9.7,3.9 11.0,5.1 12.3,5.1 13.6,6.4 14.9,6.9 16.2,5.6 17.5,5.3 18.8,4.7 20.1,5.7 21.4,5.8 22.6,7.2 23.9,7.7 25.2,7.1 26.5,10.7 27.8,10.4 29.1,10.3 30.4,9.9 31.7,10.8 33.0,11.0 34.3,10.3 35.5,11.4 36.8,11.0 38.1,9.6 39.4,10.2 40.7,10.5 42.0,12.1 43.3,10.7 44.6,10.4 45.9,10.9 47.2,11.3 48.5,11.1 49.7,13.2 51.0,14.5 52.3,13.7 53.6,12.9 54.9,13.4 56.2,13.9 57.5,17.0 58.8,15.4 60.1,16.0 61.4,12.9 62.6,12.0 63.9,12.9 65.2,12.0 66.5,13.9 67.8,14.6 69.1,17.3 70.4,17.3 71.7,18.1 73.0,17.8 74.3,20.7 75.5,22.0 76.8,26.0 78.1,22.8 79.4,24.9 80.7,25.5 82.0,24.1" style="stroke:var(--c-up)" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
   </summary>
   <div class="chart" data-code="gold" data-kind="price" data-dg="1" data-mk="美股">
@@ -580,10 +606,10 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
   <div class="plot"></div>
   <p class="evline" aria-live="polite"></p><p class="legend" data-for="price"><span><i style="border-color:var(--c-ma60)"></i>季線 60 日</span><span><i style="border-color:var(--c-ma240)"></i>年線 240 日</span></p>
 </div>
-  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:var(--c-down)">−32.4%</b>（最高點 2026-01-29，5,318.4）。這一波最深跌到 −33.9%（2026-11-20），從高點算起已 10 個月，還沒回到前高。</p></div><div class="fact">
+  <div class="facts"><div class="fact"><h3>距最高點</h3><p>距歷史最高點 <b style="color:var(--c-down)">−32.3%</b>（最高點 2026-01-29，5,318.4）。這一波最深跌到 −33.9%（2026-11-20），從高點算起已 10 個月，還沒回到前高。</p></div><div class="fact">
     <h3>52 週高低</h3>
-    <div class="range" role="img" aria-label="52 週最低 3,515.4，最高 5,318.4，現在 3,597.1，在區間的 5% 位置">
-      <span class="bar"><i style="left:4.5%"></i></span>
+    <div class="range" role="img" aria-label="52 週最低 3,515.4，最高 5,318.4，現在 3,597.9，在區間的 5% 位置">
+      <span class="bar"><i style="left:4.6%"></i></span>
       <span class="lo">3,515.4<small>2026-11-20</small></span><span class="hi">5,318.4<small>2026-01-29</small></span>
     </div>
   </div><div class="fact">
@@ -621,7 +647,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
       <tbody><tr class="now"><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20367" data-b="20782" data-label="從高點到現在 14 個月">2025-10 → 2026-06</button></td><td class="num" style="color:var(--c-down)">−53.1%</td><td class="num">9 個月</td><td class="num">還沒回到</td></tr><tr class="inside"><td colspan="4">這段期間裡，還從 2026-09-21（86,603）跌到 2026-11-20（58,799），<span style="color:var(--c-down)">−32.1%</span>；因為沒有回到前高，不另外算一次。</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="20109" data-b="20226" data-label="水面下 4 個月">2025-01 → 2025-04</button></td><td class="num" style="color:var(--c-down)">−28.1%</td><td class="num">3 個月</td><td class="num">1 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="19795" data-b="20033" data-label="水面下 8 個月">2024-03 → 2024-09</button></td><td class="num" style="color:var(--c-down)">−26.2%</td><td class="num">6 個月</td><td class="num">2 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18939" data-b="19786" data-label="水面下 2.3 年">2021-11 → 2022-11</button></td><td class="num" style="color:var(--c-down)">−76.6%</td><td class="num">12 個月</td><td class="num">15 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18730" data-b="18919" data-label="水面下 6 個月">2021-04 → 2021-07</button></td><td class="num" style="color:var(--c-down)">−53.1%</td><td class="num">3 個月</td><td class="num">3 個月</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18679" data-b="18697" data-label="水面下 18 天">2021-02 → 2021-02</button></td><td class="num" style="color:var(--c-down)">−21.6%</td><td class="num">7 天</td><td class="num">11 天</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="18635" data-b="18666" data-label="水面下 1 個月">2021-01 → 2021-01</button></td><td class="num" style="color:var(--c-down)">−25.4%</td><td class="num">19 天</td><td class="num">12 天</td></tr><tr><td><button type="button" class="ddbtn" aria-pressed="false" data-a="17516" data-b="18596" data-label="水面下 3.0 年">2017-12 → 2018-12</button></td><td class="num" style="color:var(--c-down)">−83.4%</td><td class="num">12 個月</td><td class="num">24 個月</td></tr></tbody>
     </table></div>
   </div><p class="note">用每天收盤價計算，2014 年起；是價格、不含股息或配息，和實際持有的報酬會有差距。只是歷史紀錄，不代表之後會怎麼走。</p></div>
-</details></section><section class="group" id="ndc"><h2>景氣（每月）</h2><details id="i-ndc">
+</details></details><section class="group" id="ndc"><h2>景氣（每月）</h2><details id="i-ndc">
   <summary class="row">
     <span class="name">景氣燈號<small>國發會 · 2026 年 9 月</small></span>
     <span class="value">41 分</span>
@@ -652,7 +678,7 @@ tr.inside td{white-space:normal;font-size:12px;line-height:1.6;color:var(--c-mut
     <p><a href="backtest.html">長期來看：回測</a>（年線進出、景氣燈號 vs 長期持有）</p>
     <p><a href="logbook.html">維修日誌</a>（這個小工具每一次改了什麼、為什麼這樣改）</p>
     <p><a href="History/index.html">歷史版本</a>（每次改版前存一份當時的畫面）</p>
-    <p>網頁更新於 2026-11-26 16:54（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p>網頁更新於 2026-11-27 00:05（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
   </div>
 </footer>
@@ -676,7 +702,7 @@ function loadSeries(code) {
   if (MW_SERIES[code]) return Promise.resolve(decode(MW_SERIES[code]));
   if (!loading[code]) loading[code] = new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "series/" + code + ".js?v=202611261654";
+    s.src = "series/" + code + ".js?v=202611270005";
     s.onload = () => MW_SERIES[code] ? ok(decode(MW_SERIES[code])) : fail();
     s.onerror = fail;
     document.head.appendChild(s);
@@ -926,7 +952,7 @@ document.querySelectorAll(".ddbtn").forEach(btn => btn.addEventListener("click",
 let resizeTimer;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => document.querySelectorAll("details[open] .chart").forEach(render), 150);
+  resizeTimer = setTimeout(() => document.querySelectorAll("details[open] > .chart").forEach(render), 150);
 });
 
 
@@ -1201,9 +1227,27 @@ document.querySelectorAll(".cmp").forEach(box => {
 window.addEventListener("resize", () => setTimeout(() => document.querySelectorAll(".cmp").forEach(box => { if (!box.querySelector(".body").hidden) cmpRender(box); }), 170));
 
 
+/* 指標分組收合：記住每一組上次是開還是關（localStorage「mw_groups」，只存在這台裝置的瀏覽器） */
 (function(){
+  let st={}; try{ st=JSON.parse(localStorage.getItem('mw_groups'))||{}; }catch(e){}
+  document.querySelectorAll('details.grp').forEach(d=>{
+    if(typeof st[d.id]==='boolean') d.open=st[d.id];
+    d.addEventListener('toggle',()=>{ st[d.id]=d.open; try{ localStorage.setItem('mw_groups',JSON.stringify(st)); }catch(e){} });
+  });
+  /* 點磚塊或組名：打開那一組、那一行，捲過去 */
+  document.querySelectorAll('.overview a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{
+    const id=a.getAttribute('href').slice(1), t=document.getElementById(id); if(!t) return;
+    e.preventDefault(); history.replaceState(null,'','#'+id); openTo(t);
+  }));
+})();
+
+
+/* 網址帶 #代號 時打開那一塊；外面的組收起來也一起打開（2026-11-26：指標分組可以收合） */
+function openTo(t){ for(let p=t;p;p=p.parentElement) if(p.tagName==='DETAILS') p.open=true; requestAnimationFrame(()=>t.scrollIntoView()); }
+(function(){
+  const closed=t=>{ for(let p=t;p;p=p.parentElement) if(p.tagName==='DETAILS'&&!p.open) return true; return false; };
   const open=()=>{ const id=decodeURIComponent(location.hash.slice(1)), t=id&&document.getElementById(id);
-    if(t&&t.tagName==='DETAILS'&&!t.open){ t.open=true; requestAnimationFrame(()=>t.scrollIntoView()); } };
+    if(t&&closed(t)) openTo(t); };
   open(); addEventListener('hashchange',open);
 })();
 

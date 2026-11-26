@@ -495,3 +495,24 @@ run_at,where,indicator,source,status,last_date,rows,note
 2026-11-25 17:11:11,GitHub Actions,events_fed,federalreserve.gov,OK,2026-09-16,60,60 筆連到聲明稿
 2026-11-25 17:11:13,GitHub Actions,events_cbc,cbc.gov.tw,OK,2026-09-17,122,升降息 55 次、維持 64 次
 2026-11-25 17:11:14,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-09,537,
+2026-11-26 12:24:40,GitHub Actions,taiex,TWSE FMTQIK,OK,2026-11-25,7204,
+2026-11-26 12:24:45,GitHub Actions,2330,TWSE STOCK_DAY,OK,2026-11-25,6686,
+2026-11-26 12:24:45,GitHub Actions,tsm,Yahoo TSM,OK,2026-11-25,7328,
+2026-11-26 12:24:49,GitHub Actions,otc,TPEx 櫃買指數,OK,2026-11-25,6733,
+2026-11-26 12:24:49,GitHub Actions,spx,Yahoo ^GSPC,OK,2026-11-25,14348,
+2026-11-26 12:24:50,GitHub Actions,dji,Yahoo ^DJI,OK,2026-11-25,8788,
+2026-11-26 12:24:50,GitHub Actions,ixic,Yahoo ^IXIC,OK,2026-11-25,14070,
+2026-11-26 12:24:50,GitHub Actions,qqq,Yahoo QQQ,OK,2026-11-25,6973,
+2026-11-26 12:24:50,GitHub Actions,smh,Yahoo SMH,OK,2026-11-25,6660,
+2026-11-26 12:24:50,GitHub Actions,sox,Yahoo ^SOX,OK,2026-11-25,8197,
+2026-11-26 12:24:50,GitHub Actions,nvda,Yahoo NVDA,OK,2026-11-25,7005,
+2026-11-26 12:24:50,GitHub Actions,vix,Yahoo ^VIX,OK,2026-11-25,9296,
+2026-11-26 12:24:50,GitHub Actions,us10y,Yahoo ^TNX,OK,2026-11-25,14246,
+2026-11-26 12:24:52,GitHub Actions,usdtwd,Yahoo TWD=X,OK,2026-11-25,5470,
+2026-11-26 12:24:52,GitHub Actions,gold,Yahoo GC=F,OK,2026-11-24,6584,
+2026-11-26 12:24:52,GitHub Actions,btc,Yahoo BTC-USD,OK,2026-11-24,4452,
+2026-11-26 12:24:58,GitHub Actions,2330_pe,TWSE BWIBBU,OK,2026-11-25,5220,
+2026-11-26 12:24:58,GitHub Actions,spx_pe,multpl.com,FAIL,,0,"URLError(ConnectionRefusedError(111, 'Connection refused'))"
+2026-11-26 12:24:58,GitHub Actions,events_fed,federalreserve.gov,OK,2026-09-16,60,60 筆連到聲明稿
+2026-11-26 12:25:00,GitHub Actions,events_cbc,cbc.gov.tw,OK,2026-09-17,122,升降息 55 次、維持 64 次
+2026-11-26 12:25:02,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-09,537,

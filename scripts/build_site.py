@@ -1114,7 +1114,7 @@ document.querySelectorAll(".ddbtn").forEach(btn => btn.addEventListener("click",
 let resizeTimer;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => document.querySelectorAll("details[open] .chart").forEach(render), 150);
+  resizeTimer = setTimeout(() => document.querySelectorAll("details[open] > .chart").forEach(render), 150);
 });
 """
 
@@ -1531,12 +1531,64 @@ def logbook_page(w, built, nav_links):
 
 # 網址帶 #某個 <details> 的 id 時打開它（首頁 #i-<代號>、維修日誌 #mx-…）：「去看看」一點就落在那個功能上，不用自己找、自己點開
 OPEN_HASH_JS = r"""
+/* 網址帶 #代號 時打開那一塊；外面的組收起來也一起打開（2026-11-26：指標分組可以收合） */
+function openTo(t){ for(let p=t;p;p=p.parentElement) if(p.tagName==='DETAILS') p.open=true; requestAnimationFrame(()=>t.scrollIntoView()); }
 (function(){
+  const closed=t=>{ for(let p=t;p;p=p.parentElement) if(p.tagName==='DETAILS'&&!p.open) return true; return false; };
   const open=()=>{ const id=decodeURIComponent(location.hash.slice(1)), t=id&&document.getElementById(id);
-    if(t&&t.tagName==='DETAILS'&&!t.open){ t.open=true; requestAnimationFrame(()=>t.scrollIntoView()); } };
+    if(t&&closed(t)) openTo(t); };
   open(); addEventListener('hashchange',open);
 })();
 """
+
+# ---------- 首頁：磚塊總覽＋分組收合（2026-11-26，Robert 11/24 選 A＋C）----------
+GROUP_OPEN = {"list": True, "us": True, "wind": False, "other": False}   # 第一次來時哪幾組展開（之後記在瀏覽器）
+GROUP_JS = r"""
+/* 指標分組收合：記住每一組上次是開還是關（localStorage「mw_groups」，只存在這台裝置的瀏覽器） */
+(function(){
+  let st={}; try{ st=JSON.parse(localStorage.getItem('mw_groups'))||{}; }catch(e){}
+  document.querySelectorAll('details.grp').forEach(d=>{
+    if(typeof st[d.id]==='boolean') d.open=st[d.id];
+    d.addEventListener('toggle',()=>{ st[d.id]=d.open; try{ localStorage.setItem('mw_groups',JSON.stringify(st)); }catch(e){} });
+  });
+  /* 點磚塊或組名：打開那一組、那一行，捲過去 */
+  document.querySelectorAll('.overview a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{
+    const id=a.getAttribute('href').slice(1), t=document.getElementById(id); if(!t) return;
+    e.preventDefault(); history.replaceState(null,'','#'+id); openTo(t);
+  }));
+})();
+"""
+
+
+def tint(hex_color, alpha):
+    """'#ef6a5f', 0.3 → 'rgba(239,106,95,0.30)'：磚塊底色（深淺兩種主題都疊在底色上）"""
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return f"rgba({r},{g},{b},{alpha:.2f})"
+
+
+def tile(code, name, kind, s, stale):
+    """一塊磚：名稱、今天漲跌、最新數字。漲跌類（price）顏色深淺＝漲跌幅（4% 以上最深）；點數類不上紅綠。"""
+    chg, _ = fmt_change(code, kind, s)
+    if kind == "price" and len(s) >= 2:
+        c = pct(s, len(s) - 1)
+        bg = tint(UP if c > 0 else DN, 0.10 + 0.45 * min(abs(c) / 4, 1)) if c else "#1f2126"
+    else:
+        bg = "#1f2126"
+    st = f'<small class="stale">停在 {md(s[-1][0])}</small>' if stale else ""
+    return (f'<a class="tile" href="#i-{code}" style="background:{bg}"><span class="tn">{name}</span>'
+            f'<b class="tc">{chg}</b><span class="tv">{fmt_value(code, s[-1][1])}</span>{st}</a>')
+
+
+def group_stats(items):
+    """組標題列：幾漲幾跌；全部是漲跌類（price）時加平均漲跌。items＝[(kind, series)]"""
+    chgs = [(k, pct(s, len(s) - 1) if k == "price" else s[-1][1] - s[-2][1]) for k, s in items if len(s) >= 2]
+    up, dn = sum(c > 0 for _, c in chgs), sum(c < 0 for _, c in chgs)
+    if chgs and all(k == "price" for k, _ in chgs):
+        avg = sum(c for _, c in chgs) / len(chgs)
+        col = UP if avg > 0 else DN if avg < 0 else FLAT
+        return (f'<span style="color:{UP}">▲{up}</span> <span style="color:{DN}">▼{dn}</span>'
+                f'<span class="avg">平均 <span style="color:{col}">{"+" if avg > 0 else ""}{avg:.2f}%</span></span>')
+    return f'<span>▲{up} ▼{dn}</span>'   # 點數類（VIX、殖利率、匯率）漲跌不分好壞，不上紅綠
 
 
 # ---------- 深色（預設）／淺色主題（2026-11-23）----------
@@ -1649,22 +1701,26 @@ def build():
         notes_html = '<section class="block"><h2>今天值得注意</h2>' + "".join(f"<p>{html.escape(n)}</p>" for n in notes) + "</section>"
 
     # 指標列表
-    groups_html = []
+    groups_html, tiles_html = [], []
     newest = {"台股": tw_last, "美股": us_last, "風向": us_last, "其他資產": us_last}
     for group in ("台股", "美股", "風向", "其他資產"):
-        rows_html = []
+        rows_html, group_tiles, stats_in = [], [], []
+        gid = GROUP_IDS[group]
         for code, name, sub, g, kind in ROWS:
             if g != group:
                 continue
             s = series_map[code]
             if not s:
                 rows_html.append(f'<div class="row nodata"><span class="name">{name}<small>{sub}</small></span><span class="stale">抓不到資料</span></div>')
+                group_tiles.append(f'<span class="tile nodata"><span class="tn">{name}</span><span class="stale">抓不到資料</span></span>')
                 continue
             chg, color = fmt_change(code, kind, s)
             spark = spark_points([v for _, v in s[-SPARK_DAYS:]])
             stale = ""
             if s[-1][0] < newest[group]:
                 stale = f'<small class="stale">資料停在 {md(s[-1][0])}</small>'
+            group_tiles.append(tile(code, name, kind, s, bool(stale)))
+            stats_in.append((kind, s))
             rows_html.append(f"""<details id="i-{code}">
   <summary class="row">
     <span class="name">{name}<small>{sub}</small>{stale}</span>
@@ -1683,15 +1739,30 @@ def build():
                 if est:   # 記下從哪天起是估計值，圖上才能標「估計」
                     extra["est"] = (dt.date.fromisoformat(est) - EPOCH).days
                 write_series(pe_code, load(pe_code), extra)
-        anchor = f' id="{GROUP_IDS[group]}"'   # 台股＝#list（頁首「指標」跳到第一組）；其他組給維修日誌的「去看看」用
-        groups_html.append(f'<section class="group"{anchor}><h2>{group}</h2>{"".join(rows_html)}</section>')
+        # 每一組可以收合（id：台股＝#list、美股＝#us…，維修日誌的「去看看」連到這裡）；標題列顯示幾個、幾漲幾跌、平均
+        n = sum(1 for r in ROWS if r[3] == group)
+        groups_html.append(
+            f'<details class="grp" id="{gid}"{" open" if GROUP_OPEN.get(gid) else ""}>'
+            f'<summary class="ghead"><h2>{group}<small>{n} 個</small></h2><span class="gstat">{group_stats(stats_in)}</span></summary>'
+            f'{"".join(rows_html)}</details>')
+        tiles_html.append(f'<h3><a href="#{gid}">{group}</a></h3><div class="tiles">{"".join(group_tiles)}</div>')
     ndc = load_ndc()
     groups_html.insert(0, f'<section class="group" id="compare"><h2>比較</h2>{compare_block(bool(ndc))}</section>')
     if ndc:   # 國發會景氣燈號（每月）
         write_ndc_series(ndc)
         groups_html.append(f'<section class="group" id="ndc"><h2>景氣（每月）</h2>{ndc_row(ndc)}</section>')
+        last = next((r for r in reversed(ndc) if r[1] is not None), None)
+        if last:   # 磚塊最後加一塊景氣燈號（底色＝燈號顏色）
+            lc = dict((nm, col) for nm, col, _ in NDC_LIGHTS).get(last[2], "#5a5d64")
+            tiles_html.append(f'<h3><a href="#ndc">景氣（每月）</a></h3><div class="tiles">'
+                              f'<a class="tile" href="#ndc" style="background:{tint(lc, 0.35)}"><span class="tn">景氣燈號</span>'
+                              f'<b class="tc">{last[2]}燈 {last[1]} 分</b><span class="tv">{int(last[0][5:7])} 月</span></a></div>')
+    n_all = sum(1 for code, *_ in ROWS if series_map[code])
+    overview = (f'<section class="overview" id="overview"><div class="ovhead"><h2>全部 {n_all} 個指標</h2>'
+                f'<span>顏色深淺＝今天漲跌幅大小 · 點一下看走勢</span></div>{"".join(tiles_html)}</section>')
+    groups_html.insert(0, overview)
 
-    nav = [("today", "今天"), ("compare", "比較"), ("list", "指標")] + ([("ndc", "景氣")] if ndc else [])
+    nav = [("today", "今天"), ("overview", "指標"), ("compare", "比較")] + ([("ndc", "景氣")] if ndc else [])
     pages = [("backtest.html", "回測")] + ([("guide.html", "手冊")] if any((OUT.parent / "guide").glob("*/*.jpg")) else [])
     nav_html = "".join(f'<a href="#{a}">{t}</a>' for a, t in nav) + "".join(f'<a href="{h}">{t}</a>' for h, t in pages)
     links = lambda here: [(f"index.html#{a}", t, False) for a, t in nav] + [(h, t, h == here) for h, t in pages]
@@ -1761,7 +1832,33 @@ summary::-webkit-details-marker{{display:none}}
 .row{{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr);align-items:center;gap:12px;min-height:52px;padding:4px 6px;border-radius:4px}}
 summary.row:hover{{background:#1c1f24}}
 summary.row:focus-visible{{outline:2px solid #d97757;outline-offset:-2px}}
-details[open] summary.row{{background:#1c1f24}}
+details[open]>summary.row{{background:#1c1f24}}
+.overview{{display:flex;flex-direction:column;gap:6px}}
+.ovhead{{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}}
+.ovhead span{{font-size:12px;color:#8f8d87}}
+.overview h3{{margin:8px 0 0;font-size:12px;font-weight:600}}
+.overview h3 a{{display:inline-flex;align-items:center;min-height:28px;color:#a7a59e;text-decoration:none;letter-spacing:.06em}}
+.overview h3 a::after{{content:"›";margin-left:6px;color:#5a5d64}}
+.overview h3 a:hover{{color:#d97757}}
+.overview a:focus-visible{{outline:2px solid #d97757;outline-offset:2px}}
+.tiles{{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}}
+.tile{{display:flex;flex-direction:column;gap:2px;min-height:76px;padding:8px 10px;border-radius:6px;color:#ecebe6;text-decoration:none;font-variant-numeric:tabular-nums;border:1px solid transparent}}
+a.tile:hover{{border-color:#ecebe6}}
+.tile .tn{{font-size:12px;line-height:1.4}}
+.tile .tc{{font-size:16px;font-weight:700;white-space:nowrap}}
+.tile .tv{{font-size:12px;color:#c9c7c0}}
+.tile small{{font-size:12px}}
+.tile.nodata{{background:#1f2126}}
+details.grp{{border-top:1px solid #3a3d44}}
+.ghead{{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:4px 6px;border-radius:4px}}
+.ghead:hover{{background:#1c1f24}}
+.ghead:focus-visible{{outline:2px solid #d97757;outline-offset:-2px}}
+.ghead h2{{margin:0;font-size:15px;color:#ecebe6;letter-spacing:.04em;display:flex;align-items:baseline;gap:8px}}
+.ghead h2::before{{content:"▸";display:inline-block;width:12px;color:#8f8d87;font-size:12px;transition:transform .15s}}
+details.grp[open]>.ghead h2::before{{transform:rotate(90deg)}}
+.ghead h2 small{{font-size:12px;font-weight:400;color:#8f8d87}}
+.gstat{{font-size:13px;color:#a7a59e;white-space:nowrap;font-variant-numeric:tabular-nums}}
+.gstat .avg{{margin-left:8px}}
 .name{{display:flex;flex-direction:column;font-size:15px}}
 .name small{{font-size:12px;color:#8f8d87}}
 .name small.stale,.stale{{color:#e0a95a}}
@@ -1916,6 +2013,7 @@ const CMP_META = {cmp_meta}, CMP_COLORS = {json.dumps(CMP_COLORS)}, CMP_DEFAULT 
 {chart_js}
 {NDC_JS}
 {CMP_JS}
+{GROUP_JS}
 {OPEN_HASH_JS}
 {CAL_JS}
 </script>

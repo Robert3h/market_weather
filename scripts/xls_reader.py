@@ -1,7 +1,7 @@
 """讀舊版 Excel（.xls，OLE 複合檔＋BIFF8）的儲存格。只用 Python 內建功能（2026-11-24）。
 
 用途：櫃買中心的「公債殖利率曲線」每天一個 .xls（data/tw10y.csv 的來源）。
-只處理數字和文字儲存格（SST、LABELSST、NUMBER、RK、MULRK、LABEL），公式、格式、圖表都略過。
+只處理數字和文字儲存格（SST、LABELSST、NUMBER、RK、MULRK、LABEL）和公式存起來的數字結果，格式、圖表都略過。
     from xls_reader import read_sheets
     sheets = read_sheets(raw_bytes)   # [{(列, 欄): 值, ...}, ...]，列、欄從 0 開始
 """
@@ -125,6 +125,10 @@ def read_sheets(raw):
             r, c0 = struct.unpack_from("<HH", b)
             for t in range((len(b) - 6) // 6):
                 cur[(r, c0 + t)] = _rk(struct.unpack_from("<HI", b, 4 + t * 6)[1])
+        elif rid == 0x0006:   # FORMULA：讀存起來的計算結果（數字）；結果是文字、布林、錯誤的略過（2026-11-27 讀 Shiller 資料加的）
+            r, c, _ = struct.unpack_from("<HHH", b)
+            if b[12:14] != bytes((255, 255)):
+                cur[(r, c)] = struct.unpack_from("<d", b, 6)[0]
         elif rid == 0x0204:   # LABEL（舊格式）
             r, c, _, ln = struct.unpack_from("<HHHH", b)
             cur[(r, c)] = b[8:8 + ln].decode("cp950", "replace")

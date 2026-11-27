@@ -659,6 +659,25 @@ def load_events():
     return sorted(out)
 
 
+def source_down(code):
+    """fetch_log 裡這個代號最近一次是 FAIL → (資料最後一天, 從哪天開始連續失敗)；正常回 None。
+    2026-11-27 Robert：抓不到資料時，頁面或線圖要看得出來（標普本益比 multpl.com 連不上）。"""
+    f = DATA_DIR / "fetch_log.csv"
+    if not f.exists():
+        return None
+    with f.open(encoding="utf-8") as fh:
+        rows = [r for r in csv.reader(fh) if len(r) > 4 and r[2] == code]
+    if not rows or rows[-1][4] != "FAIL":
+        return None
+    since = rows[-1][0]
+    for r in reversed(rows):
+        if r[4] != "FAIL":
+            break
+        since = r[0]
+    s = load(code)
+    return (s[-1][0] if s else "", since[:10])
+
+
 def chart_block(code, kind):
     buttons = "".join(
         f'<button type="button" data-r="{r}"{" aria-pressed=true" if r == "1Y" else " aria-pressed=false"}>{label}</button>'
@@ -672,11 +691,15 @@ def chart_block(code, kind):
     pe_code = PE_FOR.get(code)
     if pe_code and (DATA_DIR / f"{pe_code}.csv").exists():   # 有本益比資料才出現「股價｜本益比」切換
         pe_attr = f' data-pe="{pe_code}"'
+        down = source_down(pe_code)
+        pe_flag = f"・停在 {md(down[0])}" if down else ""
+        pe_warn = (f'<span style="color:#eb9474">資料停在 {md(down[0])}：來源從 {md(down[1])} 起連不上，每天會自動再試</span>'
+                   if down else "")
         modes = ('<div class="modes" role="group" aria-label="圖表類型">'
                  f'<button type="button" data-m="price" aria-pressed="true">{"股價" if code == "2330" else "指數"}</button>'
-                 '<button type="button" data-m="pe" aria-pressed="false">本益比</button></div>\n  ')
+                 f'<button type="button" data-m="pe" aria-pressed="false">本益比{pe_flag}</button></div>\n  ')
         legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
-                   f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span></p>')
+                   f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span>{pe_warn}</p>')
     mk = "台股" if code in ("taiex", "otc", "txn", "2330", "usdtwd", "tw10y") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
     return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}" data-mk="{mk}"{suf}{pe_attr}>
   {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
@@ -1658,6 +1681,18 @@ THEME_CSS = (":root{color-scheme:dark;" + "".join(f"--c-{n}:{d};" for d, (n, _) 
              ':root[data-updn="us"]{--c-up:#3fb27f;--c-down:#ef6a5f}'
              ':root[data-theme="light"][data-updn="us"]{--c-up:#18794e;--c-down:#c5302a}'
              ".theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}"
+             # 回到頂端（2026-11-27 Robert：長的頁面手機、電腦都要有，看得到但不打擾）：右下角小圓鈕，捲超過約 1.5 個螢幕才出現
+             ".to-top{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;width:44px;height:44px;border-radius:50%;"
+             "border:1px solid var(--c-rule3);background:color-mix(in srgb,var(--c-surface) 88%,transparent);color:var(--c-muted);cursor:pointer;"
+             "display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transform:translateY(8px);"
+             "transition:opacity .2s,transform .2s,visibility .2s;box-shadow:0 2px 10px rgba(0,0,0,.25)}"
+             ".to-top.show{opacity:.85;visibility:visible;transform:none}"
+             ".to-top:hover{opacity:1;color:var(--c-accent);border-color:var(--c-accent)}"
+             ".to-top:focus-visible{opacity:1;outline:2px solid var(--c-accent);outline-offset:2px}"
+             ".to-top svg{width:18px;height:18px}"
+             "@media (min-width:900px){.to-top{right:24px;bottom:24px}}"
+             "@media (prefers-reduced-motion:reduce){.to-top{transition:none}}"
+             "body:has(:fullscreen) .to-top{display:none}"
              ".dls{margin:10px 0 4px;font-size:14px;color:var(--c-muted)}"
              ".dls a{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;margin:4px 6px 4px 0;border:1px solid var(--c-rule3);"
              "border-radius:6px;color:var(--c-ink);text-decoration:none}.dls a:hover{border-color:var(--c-accent);color:var(--c-accent)}"
@@ -1671,9 +1706,9 @@ THEME_CSS = (":root{color-scheme:dark;" + "".join(f"--c-{n}:{d};" for d, (n, _) 
              ".updn button:hover{color:var(--c-accent)}.updn button[aria-pressed=true]:hover{color:var(--c-bg)}"
              ".updn button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
              ".updn .flag{width:20px;height:14px;border-radius:2px;flex:none}"
-             ".updn-key{margin-left:10px;color:var(--c-muted);white-space:nowrap}.updn-key b{font-weight:400;color:var(--c-ink2)}"
-             ".updn-key .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px;vertical-align:0}"
-             ".updn-key .dot.up{background:var(--c-up)}.updn-key .dot.dn{background:var(--c-down)}"
+             # 旁邊只放兩個三角形：▲ 是漲的顏色、▼ 是跌的顏色（2026-11-27 Robert：不要字和圓點，三角形方向＋顏色就夠）
+             ".updn-key{margin-left:10px;white-space:nowrap;font-size:14px;letter-spacing:2px}"
+             ".updn-key .k-up{color:var(--c-up)}.updn-key .k-dn{color:var(--c-down)}"
              "@media (max-width:900px){.updn-key{display:none}}"
              # 手機：只留國旗（字縮成 0 但還在，螢幕報讀和 title 照樣讀得到），才塞得進第一行
              "@media (max-width:480px){.updn{order:2;margin-left:6px}.updn button{min-height:30px;padding:0 8px;gap:0;font-size:0}}"
@@ -1689,11 +1724,16 @@ THEME_JS = """<script>
   b.addEventListener('click',()=>{ const next=root.getAttribute('data-theme')==='light'?'dark':'light'; root.setAttribute('data-theme',next);
     try{ localStorage.setItem('theme',next); }catch(e){} paint(); });
   paint();
+  // 回到頂端：捲超過約 1.5 個螢幕才出現（2026-11-27）
+  const top=document.querySelector('.to-top');
+  if(top){ const tick=()=>top.classList.toggle('show', scrollY > innerHeight*1.5);
+    addEventListener('scroll',tick,{passive:true}); tick();
+    top.addEventListener('click',()=>{ scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); }); }
   // 漲跌顏色：台股（紅漲綠跌）｜美股（綠漲紅跌）兩段式，旁邊用色點標出現在的對應（2026-11-27 Robert 改成國旗兩段式）
   const g=document.querySelector('.updn'); if(!g) return;
   const paintU=()=>{ const us=root.getAttribute('data-updn')==='us';
     g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.v==='us')===us)));
-    g.querySelector('.k-up').textContent=us?'綠':'紅'; g.querySelector('.k-dn').textContent=us?'紅':'綠'; };
+  };
   g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ const us=b.dataset.v==='us';
     if(us) root.setAttribute('data-updn','us'); else root.removeAttribute('data-updn');
     try{ localStorage.setItem('updn',us?'us':'tw'); }catch(e){} paintU(); }));
@@ -1709,8 +1749,11 @@ def themed(page):
     page = page.replace("</head>", f"<style>{THEME_CSS}</style>\n{THEME_HEAD}\n</head>", 1)
     # 2026-11-27 Robert：手冊（使用教學）和維修日誌另開新分頁
     page = re.sub(r'<a href="(guide|logbook)\.html"(?![^>]*target=)', r'<a href="\1.html" target="_blank" rel="noopener"', page)
-    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><div class="updn" role="group" aria-label="漲跌顏色"><button type="button" data-v="tw" aria-pressed="true" title="紅漲綠跌（台灣習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#e8112d"/><rect width="15" height="10" fill="#0a2a8c"/><polygon points="7.50,1.40 8.06,2.92 9.30,1.88 9.02,3.48 10.62,3.20 9.58,4.44 11.10,5.00 9.58,5.56 10.62,6.80 9.02,6.52 9.30,8.12 8.06,7.08 7.50,8.60 6.94,7.08 5.70,8.12 5.98,6.52 4.38,6.80 5.42,5.56 3.90,5.00 5.42,4.44 4.38,3.20 5.98,3.48 5.70,1.88 6.94,2.92" fill="#fff"/><circle cx="7.5" cy="5" r="2.05" fill="#0a2a8c"/><circle cx="7.5" cy="5" r="1.75" fill="#fff"/></svg>台股</button><button type="button" data-v="us" aria-pressed="false" title="綠漲紅跌（美國習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect y="0.000" width="30" height="1.538" fill="#b31942"/><rect y="3.077" width="30" height="1.538" fill="#b31942"/><rect y="6.154" width="30" height="1.538" fill="#b31942"/><rect y="9.231" width="30" height="1.538" fill="#b31942"/><rect y="12.308" width="30" height="1.538" fill="#b31942"/><rect y="15.385" width="30" height="1.538" fill="#b31942"/><rect y="18.462" width="30" height="1.538" fill="#b31942"/><rect width="12" height="10.769" fill="#0a3161"/><circle cx="1.4" cy="1.30" r=".45" fill="#fff"/><circle cx="3.8" cy="1.30" r=".45" fill="#fff"/><circle cx="6.2" cy="1.30" r=".45" fill="#fff"/><circle cx="8.6" cy="1.30" r=".45" fill="#fff"/><circle cx="11.0" cy="1.30" r=".45" fill="#fff"/><circle cx="2.6" cy="3.05" r=".45" fill="#fff"/><circle cx="5.0" cy="3.05" r=".45" fill="#fff"/><circle cx="7.4" cy="3.05" r=".45" fill="#fff"/><circle cx="9.8" cy="3.05" r=".45" fill="#fff"/><circle cx="1.4" cy="4.80" r=".45" fill="#fff"/><circle cx="3.8" cy="4.80" r=".45" fill="#fff"/><circle cx="6.2" cy="4.80" r=".45" fill="#fff"/><circle cx="8.6" cy="4.80" r=".45" fill="#fff"/><circle cx="11.0" cy="4.80" r=".45" fill="#fff"/><circle cx="2.6" cy="6.55" r=".45" fill="#fff"/><circle cx="5.0" cy="6.55" r=".45" fill="#fff"/><circle cx="7.4" cy="6.55" r=".45" fill="#fff"/><circle cx="9.8" cy="6.55" r=".45" fill="#fff"/><circle cx="1.4" cy="8.30" r=".45" fill="#fff"/><circle cx="3.8" cy="8.30" r=".45" fill="#fff"/><circle cx="6.2" cy="8.30" r=".45" fill="#fff"/><circle cx="8.6" cy="8.30" r=".45" fill="#fff"/><circle cx="11.0" cy="8.30" r=".45" fill="#fff"/><circle cx="2.6" cy="10.05" r=".45" fill="#fff"/><circle cx="5.0" cy="10.05" r=".45" fill="#fff"/><circle cx="7.4" cy="10.05" r=".45" fill="#fff"/><circle cx="9.8" cy="10.05" r=".45" fill="#fff"/></svg>美股</button><span class="updn-key">▲ 上升 <i class="dot up"></i><b class="k-up">紅</b>　▼ 下滑 <i class="dot dn"></i><b class="k-dn">綠</b></span></div>', page, count=1, flags=re.S)
-    return page.replace("</body>", THEME_JS + "\n</body>", 1)
+    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><div class="updn" role="group" aria-label="漲跌顏色"><button type="button" data-v="tw" aria-pressed="true" title="紅漲綠跌（台灣習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#e8112d"/><rect width="15" height="10" fill="#0a2a8c"/><polygon points="7.50,1.40 8.06,2.92 9.30,1.88 9.02,3.48 10.62,3.20 9.58,4.44 11.10,5.00 9.58,5.56 10.62,6.80 9.02,6.52 9.30,8.12 8.06,7.08 7.50,8.60 6.94,7.08 5.70,8.12 5.98,6.52 4.38,6.80 5.42,5.56 3.90,5.00 5.42,4.44 4.38,3.20 5.98,3.48 5.70,1.88 6.94,2.92" fill="#fff"/><circle cx="7.5" cy="5" r="2.05" fill="#0a2a8c"/><circle cx="7.5" cy="5" r="1.75" fill="#fff"/></svg>台股</button><button type="button" data-v="us" aria-pressed="false" title="綠漲紅跌（美國習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect y="0.000" width="30" height="1.538" fill="#b31942"/><rect y="3.077" width="30" height="1.538" fill="#b31942"/><rect y="6.154" width="30" height="1.538" fill="#b31942"/><rect y="9.231" width="30" height="1.538" fill="#b31942"/><rect y="12.308" width="30" height="1.538" fill="#b31942"/><rect y="15.385" width="30" height="1.538" fill="#b31942"/><rect y="18.462" width="30" height="1.538" fill="#b31942"/><rect width="12" height="10.769" fill="#0a3161"/><circle cx="1.4" cy="1.30" r=".45" fill="#fff"/><circle cx="3.8" cy="1.30" r=".45" fill="#fff"/><circle cx="6.2" cy="1.30" r=".45" fill="#fff"/><circle cx="8.6" cy="1.30" r=".45" fill="#fff"/><circle cx="11.0" cy="1.30" r=".45" fill="#fff"/><circle cx="2.6" cy="3.05" r=".45" fill="#fff"/><circle cx="5.0" cy="3.05" r=".45" fill="#fff"/><circle cx="7.4" cy="3.05" r=".45" fill="#fff"/><circle cx="9.8" cy="3.05" r=".45" fill="#fff"/><circle cx="1.4" cy="4.80" r=".45" fill="#fff"/><circle cx="3.8" cy="4.80" r=".45" fill="#fff"/><circle cx="6.2" cy="4.80" r=".45" fill="#fff"/><circle cx="8.6" cy="4.80" r=".45" fill="#fff"/><circle cx="11.0" cy="4.80" r=".45" fill="#fff"/><circle cx="2.6" cy="6.55" r=".45" fill="#fff"/><circle cx="5.0" cy="6.55" r=".45" fill="#fff"/><circle cx="7.4" cy="6.55" r=".45" fill="#fff"/><circle cx="9.8" cy="6.55" r=".45" fill="#fff"/><circle cx="1.4" cy="8.30" r=".45" fill="#fff"/><circle cx="3.8" cy="8.30" r=".45" fill="#fff"/><circle cx="6.2" cy="8.30" r=".45" fill="#fff"/><circle cx="8.6" cy="8.30" r=".45" fill="#fff"/><circle cx="11.0" cy="8.30" r=".45" fill="#fff"/><circle cx="2.6" cy="10.05" r=".45" fill="#fff"/><circle cx="5.0" cy="10.05" r=".45" fill="#fff"/><circle cx="7.4" cy="10.05" r=".45" fill="#fff"/><circle cx="9.8" cy="10.05" r=".45" fill="#fff"/></svg>美股</button><span class="updn-key" title="上漲、下跌現在的顏色"><b class="k-up">▲</b><b class="k-dn">▼</b></span></div>', page, count=1, flags=re.S)
+    to_top = ('<button type="button" class="to-top" aria-label="回到頂端" title="回到頂端">'
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+              '<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>')
+    return page.replace("</body>", to_top + "\n" + THEME_JS + "\n</body>", 1)
 
 
 # ---------- 組頁面 ----------

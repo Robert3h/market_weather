@@ -741,6 +741,7 @@ SUN = """<svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor"
 CLOUD = """<svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" aria-hidden="true"><path d="M20 52h34a12 12 0 0 0 0-24 16 16 0 0 0-30-4 12 12 0 0 0-4 28z"/></svg>"""
 RAIN = """<svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg>"""
 ICONS = {"晴": SUN, "陰": CLOUD, "雨": RAIN}
+CAL_ICONS = {k: v.replace('class="icon"', 'class="ci"') for k, v in ICONS.items()}   # 晴雨日曆格子裡的小圖示（線條在 CSS 加粗）（2026-11-27 Robert）
 
 
 # ---------- 今天值得注意（固定規則） ----------
@@ -2018,16 +2019,20 @@ def build():
     cu = {k: sum(1 for d in cal if d["wu"] == k) for k in "晴陰雨"}   # 美股（下半）
 
     def cal_cell(i, d):   # 上半台股、下半前一晚美股；滑過／點一下看細節（2026-11-24 Robert）
-        a, b = WEATHER[d["wt"]]["cell"], WEATHER[d["wu"]]["cell"]
         sgn = lambda c: f"{'▲' if c > 0 else '▼' if c < 0 else '－'} {abs(c):.2f}%"
         tip = (f"{md(d['date'])} 台股 {d['wt']}｜加權 {d['tw_close']:,.2f} {sgn(d['tw'])}&#10;"
                f"{md(d['us_date'])} 美股 {d['wu']}｜標普 {d['spx_close']:,.2f} {sgn(d['spx'])}&#10;"
                f"VIX {d['vix']:.1f}" + ("（高於 25，天氣降一級）" if d["vix"] > 25 else "（20～25，晴最多算陰）" if d["vix"] >= 20 else "")
                + f"&#10;規則：{RULE_TEXT}")
-        return (f'<button type="button" class="cell{" today" if i == len(cal) - 1 else ""}" '
-                f'style="background:linear-gradient({a} 0 48%,transparent 48% 52%,{b} 52% 100%)" data-tip="{tip}" '
-                f'aria-label="{md(d["date"])} 台股{d["wt"]}、美股{d["wu"]}"></button>')
-    cells = "".join(cal_cell(i, d) for i, d in enumerate(cal))
+        return (f'<button type="button" class="cell{" today" if i == len(cal) - 1 else ""}" data-tip="{tip}" '
+                f'aria-label="{md(d["date"])} 台股{d["wt"]}、美股{d["wu"]}">{cal_half(d["wt"])}{cal_half(d["wu"])}</button>')
+
+    def cal_half(k):   # 半格：淡淡的天氣底色＋太陽／雲／雨圖示（2026-11-27 Robert：用圖示更直觀）
+        c = WEATHER[k]["color"]
+        return f'<span class="ch" style="background:{tint(c, 0.16 if k == "陰" else 0.28)};color:{c}">{CAL_ICONS[k]}</span>'
+
+    side = '<span class="calside" aria-hidden="true"><span>台</span><span>美</span></span>'
+    cells = "".join((side if i % 10 == 0 else "") + cal_cell(i, d) for i, d in enumerate(cal))
 
     # 值得注意
     notes = notable(series_map)
@@ -2154,12 +2159,15 @@ main{{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px}}
 .block p{{margin:0;font-size:15px;line-height:1.6}}
 h2{{margin:0;font-size:13px;font-weight:600;color:#a7a59e;letter-spacing:.06em}}
 .calhead{{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#8f8d87}}
-.cal{{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;margin-top:4px}}
-.cell{{aspect-ratio:1;border-radius:4px;border:0;padding:0;cursor:pointer;min-width:24px}}
+.cal{{display:grid;grid-template-columns:14px repeat(10,minmax(0,1fr));gap:4px;margin-top:4px}}
+.cell{{aspect-ratio:3/4;border-radius:4px;border:0;padding:0;cursor:pointer;min-width:24px;background:none;display:flex;flex-direction:column;gap:2px}}
+.ch{{flex:1;display:grid;place-items:center;border-radius:3px;min-height:0}}
+.ci{{width:78%;max-width:20px;height:auto;stroke-width:7}}
+.calside{{display:flex;flex-direction:column;justify-content:space-around;font-size:12px;color:#8f8d87;text-align:center}}
 .cell:hover,.cell:focus-visible{{outline:2px solid #d97757;outline-offset:1px}}
 .calhead span{{text-align:right;line-height:1.5}}
 .calwrap{{position:relative}}
-.caltip{{position:absolute;z-index:5;left:0;right:0;background:#1d1f24;color:#ecebe6;border:1px solid #3a3d44;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;white-space:pre-line;box-shadow:0 6px 18px rgba(0,0,0,.35)}}
+.caltip{{position:absolute;z-index:5;left:0;right:0;background:#1c1f24;color:#ecebe6;border:1px solid #3a3d44;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;white-space:pre-line;box-shadow:0 6px 18px rgba(0,0,0,.35)}}
 .calnote{{margin:6px 0 0;font-size:12px;color:#8f8d87}}
 .cell.today{{outline:2px solid #ecebe6;outline-offset:1px}}
 .group h2{{margin-bottom:6px}}
@@ -2315,7 +2323,7 @@ tr.inside td{{white-space:normal;font-size:12px;line-height:1.6;color:#8f8d87;pa
       <section class="block">
         <div class="calhead"><h2>最近 {len(cal)} 個交易日</h2><span>台股 晴 {ct['晴']} · 陰 {ct['陰']} · 雨 {ct['雨']}<br>美股 晴 {cu['晴']} · 陰 {cu['陰']} · 雨 {cu['雨']}</span></div>
         <div class="calwrap"><div class="cal">{cells}</div><div class="caltip" role="status" hidden></div></div>
-        <p class="calnote">每格上半＝台股當天、下半＝前一晚美股；滑過或點一下看收盤</p>
+        <p class="calnote">每格上半「台」＝台股當天、下半「美」＝前一晚美股；滑過或點一下看收盤</p>
       </section>
     </aside>
     <main>

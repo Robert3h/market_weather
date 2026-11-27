@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>長期來看（回測）· market_weather</title>
+<style>*{box-sizing:border-box}
+html{scroll-padding-top:64px}
+@media (max-width:480px){html{scroll-padding-top:92px}}
+body{margin:0;background:var(--c-bg);color:var(--c-ink);font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.site-header{position:sticky;top:0;z-index:20;background:var(--c-bg);border-bottom:1px solid var(--c-rule)}
+.hwrap{max-width:1180px;margin:0 auto;padding:8px 1rem;display:flex;align-items:center;gap:4px 16px}
+.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--c-ink);text-decoration:none;font-size:15px;font-weight:600;letter-spacing:.04em}
+.brand .icon{width:22px;height:22px;flex:none}
+.brand:hover{color:var(--c-accent)}
+.brand:focus-visible,.site-header nav a:focus-visible,a:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px;border-radius:4px}
+.site-header nav{margin-left:auto;display:flex;gap:2px}
+.site-header nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 10px;color:var(--c-muted);text-decoration:none;font-size:14px;white-space:nowrap}
+.site-header nav a:hover{color:var(--c-accent);text-decoration:underline;text-underline-offset:4px}
+.site-header nav a[aria-current=page]{color:var(--c-accent);font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.doc{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem;display:flex;flex-direction:column;gap:28px}
+h1{margin:0 0 10px;font-size:28px;line-height:1.3}
+h2{margin:0 0 8px;font-size:18px}
+p{margin:0 0 10px;font-size:15px;line-height:1.8;color:var(--c-ink2)}
+.lead{font-size:16px;color:var(--c-ink)}
+.muted{font-size:13px;color:var(--c-muted2)}
+a{color:var(--c-accent)}a:hover{color:var(--c-accent-strong)}
+.tbl{overflow-x:auto;margin:8px 0 10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font-weight:600;color:var(--c-muted2);text-align:right;padding:7px 8px;border-bottom:1px solid var(--c-rule)}
+td{padding:8px;border-bottom:1px solid var(--c-rule0);text-align:right;color:var(--c-ink2)}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+td.win{color:var(--c-ink);font-weight:600}
+ul{margin:0;padding-left:1.2em;color:var(--c-ink2);font-size:14px;line-height:1.8}
+.site-footer{border-top:1px solid var(--c-rule)}
+.site-footer .foot{max-width:760px;margin:0 auto;padding:20px 1rem 40px}
+.site-footer p{margin:0 0 6px;font-size:12px;color:var(--c-muted2);line-height:1.7}
+.site-footer a{color:var(--c-muted)}
+@media (max-width:480px){.hwrap{padding:4px 12px 0;gap:0;flex-wrap:wrap}.brand{font-size:14px;gap:6px;min-height:36px}
+.site-header nav{margin-left:0;width:100%;justify-content:space-between}.site-header nav a{padding:0 4px}
+table{font-size:12px}th,td{padding:6px 4px}h1{font-size:24px}}
+.brand .icon{color:var(--c-rain)}</style>
+<style>:root{color-scheme:dark;--c-bg:#14161a;--c-surface:#181a1f;--c-surface2:#1c1f24;--c-surface3:#1f2126;--c-rule0:#1f2227;--c-rule:#262930;--c-rule2:#2c2f36;--c-rule3:#3a3d44;--c-faint:#5a5d64;--c-muted2:#8f8d87;--c-muted:#a7a59e;--c-ink2:#c9c7c0;--c-ink:#ecebe6;--c-accent:#d97757;--c-accent-strong:#eb9474;--c-up:#ef6a5f;--c-down:#3fb27f;--c-ndc-green:#3fb380;--c-rain:#6b9bf0;--c-ma60:#e0a95a;--c-ma240:#7fa7d9;--c-teal:#5fc4b8;--c-pink:#d58fb5;}:root[data-theme="light"]{color-scheme:light;--c-bg:#ffffff;--c-surface:#f6f3f1;--c-surface2:#f6f3f1;--c-surface3:#f0ece9;--c-rule0:#eceef0;--c-rule:#e3e5e8;--c-rule2:#dfe1e5;--c-rule3:#c4c7cc;--c-faint:#9aa0a6;--c-muted2:#686c71;--c-muted:#5f6368;--c-ink2:#3c4043;--c-ink:#1b1c1e;--c-accent:#b4532e;--c-accent-strong:#8f3f20;--c-up:#c5302a;--c-down:#18794e;--c-ndc-green:#18794e;--c-rain:#2a62c9;--c-ma60:#a96d12;--c-ma240:#3b6aa8;--c-teal:#12806f;--c-pink:#a8487c;}.theme-toggle{font:inherit;font-size:13px;color:var(--c-muted);background:transparent;border:1px solid var(--c-rule3);border-radius:6px;padding:0 10px;min-height:32px;margin-left:8px;cursor:pointer;white-space:nowrap;flex:none}:root[data-updn="us"]{--c-up:#3fb27f;--c-down:#ef6a5f}:root[data-theme="light"][data-updn="us"]{--c-up:#18794e;--c-down:#c5302a}.theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}.to-top{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;width:44px;height:44px;border-radius:50%;border:1px solid var(--c-rule3);background:color-mix(in srgb,var(--c-surface) 88%,transparent);color:var(--c-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s;box-shadow:0 2px 10px rgba(0,0,0,.25)}.to-top.show{opacity:.85;visibility:visible;transform:none}.to-top:hover{opacity:1;color:var(--c-accent);border-color:var(--c-accent)}.to-top:focus-visible{opacity:1;outline:2px solid var(--c-accent);outline-offset:2px}.to-top svg{width:18px;height:18px}@media (min-width:900px){.to-top{right:24px;bottom:24px}}@media (prefers-reduced-motion:reduce){.to-top{transition:none}}body:has(:fullscreen) .to-top{display:none}.xp{display:block;text-align:right;margin:4px 0 0;font-size:12px}.xp summary{list-style:none;display:inline-flex;align-items:center;gap:4px;min-height:30px;padding:0 10px;border-radius:15px;border:1px solid transparent;color:var(--c-muted);opacity:.6;cursor:pointer;user-select:none}.xp summary::-webkit-details-marker{display:none}.xp summary svg{width:14px;height:14px}.xp summary:hover,.xp[open] summary{opacity:1;color:var(--c-accent);border-color:var(--c-rule3)}.xp summary:focus-visible{opacity:1;outline:2px solid var(--c-accent);outline-offset:2px}.xp-menu{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;margin-top:4px}.xp-menu button{font:inherit;min-height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--c-rule3);background:transparent;color:var(--c-ink);cursor:pointer}.xp-menu button:hover{border-color:var(--c-accent);color:var(--c-accent)}.xp-menu button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}.xp-menu button[hidden]{display:none}.xp-msg{display:block;margin-top:4px;color:var(--c-muted)}.xp-msg:empty{display:none}#xp-print{display:none}@media print{html.print1 body>*:not(#xp-print){display:none!important}html.print1 #xp-print{display:block}html.print1 #xp-print img{width:100%;height:auto}html.print1,html.print1 body{background:#fff!important;margin:0}}.dls{margin:10px 0 4px;font-size:14px;color:var(--c-muted)}.dls a{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;margin:4px 6px 4px 0;border:1px solid var(--c-rule3);border-radius:6px;color:var(--c-ink);text-decoration:none}.dls a:hover{border-color:var(--c-accent);color:var(--c-accent)}.dls a:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}.updn{display:flex;align-items:center;gap:0;margin-left:8px;flex:none;font-size:13px}.updn button{font:inherit;display:flex;align-items:center;gap:6px;color:var(--c-muted);background:transparent;border:1px solid var(--c-rule3);padding:0 10px;min-height:32px;cursor:pointer;white-space:nowrap}.updn button:first-child{border-radius:6px 0 0 6px}.updn button:nth-child(2){border-radius:0 6px 6px 0;border-left:0}.updn button[aria-pressed=true]{background:var(--c-accent);border-color:var(--c-accent);color:var(--c-bg);font-weight:700}.updn button:hover{color:var(--c-accent)}.updn button[aria-pressed=true]:hover{color:var(--c-bg)}.updn button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}.updn .flag{width:20px;height:14px;border-radius:2px;flex:none}.updn-key{margin-left:10px;white-space:nowrap;font-size:14px;letter-spacing:2px}.updn-key .k-up{color:var(--c-up)}.updn-key .k-dn{color:var(--c-down)}@media (max-width:900px){.updn-key{display:none}}@media (max-width:480px){.updn{order:2;margin-left:6px}.updn button{min-height:30px;padding:0 8px;gap:0;font-size:0}}.theme-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}@media (max-width:480px){.theme-toggle{order:2;margin-left:auto;min-height:30px}.site-header nav{order:3}}</style>
+<script>/* 畫面出現前套用上次選的主題和漲跌顏色，避免閃一下 */try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');if(localStorage.getItem('updn')==='us')document.documentElement.setAttribute('data-updn','us');}catch(e){}</script>
+</head>
+<body>
+<div style="background:#2a2410;color:#e0a95a;font:13px/1.6 'Noto Sans TC','Microsoft JhengHei',sans-serif;padding:8px 12px;text-align:center">歷史版本：2026-11-27「晴雨日曆改成太陽、雲、雨圖示」，畫面和數字都是當時的樣子 · <a href="../../index.html" style="color:#ecebe6">回到最新版</a> · <a href="../index.html" style="color:#ecebe6">所有版本</a></div>
+<header class="site-header">
+  <div class="hwrap">
+    <a class="brand" href="index.html"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="sr">今天雨，回首頁，</span>market_weather</a>
+    <nav aria-label="網站導覽"><a href="index.html#today">今天</a><a href="index.html#overview">指標</a><a href="index.html#compare">比較</a><a href="index.html#ndc">景氣</a><a href="backtest.html" aria-current=page>回測</a><a href="guide.html" target="_blank" rel="noopener">手冊</a></nav>
+    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><div class="updn" role="group" aria-label="漲跌顏色"><button type="button" data-v="tw" aria-pressed="true" title="紅漲綠跌（台灣習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#e8112d"/><rect width="15" height="10" fill="#0a2a8c"/><polygon points="7.50,1.40 8.06,2.92 9.30,1.88 9.02,3.48 10.62,3.20 9.58,4.44 11.10,5.00 9.58,5.56 10.62,6.80 9.02,6.52 9.30,8.12 8.06,7.08 7.50,8.60 6.94,7.08 5.70,8.12 5.98,6.52 4.38,6.80 5.42,5.56 3.90,5.00 5.42,4.44 4.38,3.20 5.98,3.48 5.70,1.88 6.94,2.92" fill="#fff"/><circle cx="7.5" cy="5" r="2.05" fill="#0a2a8c"/><circle cx="7.5" cy="5" r="1.75" fill="#fff"/></svg>台股</button><button type="button" data-v="us" aria-pressed="false" title="綠漲紅跌（美國習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect y="0.000" width="30" height="1.538" fill="#b31942"/><rect y="3.077" width="30" height="1.538" fill="#b31942"/><rect y="6.154" width="30" height="1.538" fill="#b31942"/><rect y="9.231" width="30" height="1.538" fill="#b31942"/><rect y="12.308" width="30" height="1.538" fill="#b31942"/><rect y="15.385" width="30" height="1.538" fill="#b31942"/><rect y="18.462" width="30" height="1.538" fill="#b31942"/><rect width="12" height="10.769" fill="#0a3161"/><circle cx="1.4" cy="1.30" r=".45" fill="#fff"/><circle cx="3.8" cy="1.30" r=".45" fill="#fff"/><circle cx="6.2" cy="1.30" r=".45" fill="#fff"/><circle cx="8.6" cy="1.30" r=".45" fill="#fff"/><circle cx="11.0" cy="1.30" r=".45" fill="#fff"/><circle cx="2.6" cy="3.05" r=".45" fill="#fff"/><circle cx="5.0" cy="3.05" r=".45" fill="#fff"/><circle cx="7.4" cy="3.05" r=".45" fill="#fff"/><circle cx="9.8" cy="3.05" r=".45" fill="#fff"/><circle cx="1.4" cy="4.80" r=".45" fill="#fff"/><circle cx="3.8" cy="4.80" r=".45" fill="#fff"/><circle cx="6.2" cy="4.80" r=".45" fill="#fff"/><circle cx="8.6" cy="4.80" r=".45" fill="#fff"/><circle cx="11.0" cy="4.80" r=".45" fill="#fff"/><circle cx="2.6" cy="6.55" r=".45" fill="#fff"/><circle cx="5.0" cy="6.55" r=".45" fill="#fff"/><circle cx="7.4" cy="6.55" r=".45" fill="#fff"/><circle cx="9.8" cy="6.55" r=".45" fill="#fff"/><circle cx="1.4" cy="8.30" r=".45" fill="#fff"/><circle cx="3.8" cy="8.30" r=".45" fill="#fff"/><circle cx="6.2" cy="8.30" r=".45" fill="#fff"/><circle cx="8.6" cy="8.30" r=".45" fill="#fff"/><circle cx="11.0" cy="8.30" r=".45" fill="#fff"/><circle cx="2.6" cy="10.05" r=".45" fill="#fff"/><circle cx="5.0" cy="10.05" r=".45" fill="#fff"/><circle cx="7.4" cy="10.05" r=".45" fill="#fff"/><circle cx="9.8" cy="10.05" r=".45" fill="#fff"/></svg>美股</button><span class="updn-key" title="上漲、下跌現在的顏色"><b class="k-up">▲</b><b class="k-dn">▼</b></span></div>
+  </div>
+</header>
+<main>
+<div class="doc">
+<section>
+  <h1>長期來看</h1>
+  <p class="lead">這個小工具的出發點：長期持有台灣、美國這樣長期向上的整體市場，加上不被斷頭的資金管理（不借錢、不加槓桿、持股比例放在自己睡得著的程度）。</p>
+  <p>網站上的均線、本益比、景氣燈號，是用來看清現在的環境、穩住心情的儀表板，不是進出訊號。下面兩個回測，是為什麼這樣想。這裡沒有分析任何單一個股；這是作者自己的做法，不是給你的投資建議。</p>
+</section>
+<section>
+  <h2>年線進出 vs 長期持有</h2>
+  <p>年線進出：收盤在年線（240 個交易日平均）上方就持有，跌破就全部賣出，站回去再買；當天收盤判斷、隔天收盤才動作。長期持有從同一天買進，之後不動。</p>
+  <div class="tbl"><table>
+    <thead><tr><th scope="col">市場</th><th scope="col">長期持有<br>倍數（年化）</th><th scope="col">最大<br>跌幅</th><th scope="col">年線進出<br>倍數（年化）</th><th scope="col">最大<br>跌幅</th><th scope="col">進出<br>次數</th></tr></thead>
+    <tbody><tr><td>加權指數<br><span class="muted">1998–2026</span></td><td class="win">5.2 倍（6.0%）</td><td>-66%</td><td class="">5.0 倍（5.8%）</td><td>-41%</td><td>204</td></tr><tr><td class="muted">　扣台股交易成本後</td><td></td><td></td><td>2.8 倍（3.6%）</td><td></td><td></td></tr><tr><td>標普 500<br><span class="muted">1970–2026</span></td><td class="win">79.6 倍（8.1%）</td><td>-57%</td><td class="">30.3 倍（6.3%）</td><td>-38%</td><td>302</td></tr><tr><td>那斯達克 100（QQQ）<br><span class="muted">2000–2026</span></td><td class="">6.4 倍（7.2%）</td><td>-83%</td><td class="win">8.4 倍（8.3%）</td><td>-36%</td><td>154</td></tr></tbody>
+  </table></div>
+  <p>看得出來的事：</p>
+  <ul>
+    <li>年線進出最大的好處是跌得比較淺，大盤的最大跌幅少了三分之一以上。</li>
+    <li>代價是幾十年要進出一兩百次以上，每一次都要照規則執行，而且常常剛賣就漲回來。</li>
+    <li>報酬：歷史最長的標普 500 是長期持有大幅領先。加權指數不算成本時差不多，扣掉台股的手續費和證交稅後，長期持有明顯領先。那斯達克 100 的資料從 2000 年網路泡沫最高點附近開始，長期持有一開始就跌了八成多，這個起點對長期持有特別不利。</li>
+    <li>這裡都沒算股息。長期持有一直在市場裡，領到的股息比較多（台股一年約 3～4%），實際差距比表上更偏向長期持有。</li>
+  </ul>
+</section>
+<section>
+  <h2>景氣燈號：藍燈買、紅燈賣</h2>
+  <p>國發會景氣燈號出現藍燈（9–16 分）就全部買進加權指數，出現紅燈（38–45 分）就全部賣出，再等下一次藍燈；一開始是現金。燈號約在下個月 27 日才公布，所以 M 月的燈號用 M+2 月第一個交易日的收盤價進出。</p>
+  <div class="tbl"><table>
+    <thead><tr><th scope="col">1997–2026</th><th scope="col">倍數（年化）</th><th scope="col">最大跌幅</th><th scope="col">在市場裡</th></tr></thead>
+    <tbody>
+      <tr><td>長期持有</td><td class="win">4.4 倍（5.1%）</td><td>-66%</td><td>100%</td></tr>
+      <tr><td>藍燈買、紅燈賣</td><td class="">3.4 倍（4.2%）</td><td>-70%</td><td>67%</td></tr>
+    </tbody>
+  </table></div>
+  <p>29 年裡只有 4 次完整的藍燈買、紅燈賣。燈號反映的是已經發生的景氣，比股市慢：2000 年和 2008 年兩次大跌，這個做法都是抱著股票跌下去，最大跌幅沒有比較小。</p>
+  <div class="tbl"><table>
+    <thead><tr><th scope="col">買進燈號</th><th scope="col">買進日</th><th scope="col">點數</th><th scope="col">賣出燈號</th><th scope="col">賣出日</th><th scope="col">點數</th><th scope="col">漲跌</th></tr></thead>
+    <tbody><tr><td>1998-07 藍</td><td>1998-09-01</td><td>6,335</td><td>2004-05 紅</td><td>2004-07-01</td><td>5,837</td><td>-7.9%</td></tr><tr><td>2006-12 藍</td><td>2007-02-01</td><td>7,702</td><td>2010-01 紅</td><td>2010-03-01</td><td>7,578</td><td>-1.6%</td></tr><tr><td>2011-11 藍</td><td>2012-01-03</td><td>7,053</td><td>2021-02 紅</td><td>2021-04-01</td><td>16,571</td><td>+134.9%</td></tr><tr><td>2022-11 藍</td><td>2023-01-03</td><td>14,224</td><td>2024-06 紅</td><td>2024-08-01</td><td>22,642</td><td>+59.2%</td></tr></tbody>
+  </table></div>
+  <p class="muted">燈號資料到 2026-09（紅燈 41 分）。</p>
+</section>
+<section>
+  <h2>方法和限制</h2>
+  <ul>
+    <li>只用每天收盤價（價格指數，不含股息），賣出後的現金沒算利息。</li>
+    <li>交易成本只對加權指數另外算（手續費 0.1425%、證交稅 0.3%）；美股沒算。</li>
+    <li>年化報酬＝期末倍數換算成每年平均。最大跌幅＝資產從前高跌到谷底最深的一次。</li>
+    <li>這些是過去的紀錄，不代表之後會一樣。資料截至 2026-11-27，每次網站更新都用最新資料重算。</li>
+  </ul>
+</section>
+</div>
+</main>
+<footer class="site-footer">
+  <div class="foot">
+    <p>網頁更新於 2026-11-27 21:25（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p><a href="index.html">回到今天的天氣</a> · <a href="History/index.html">歷史版本</a></p>
+    <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
+  </div>
+</footer>
+<button type="button" class="to-top" aria-label="回到頂端" title="回到頂端"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
+<script>
+(function(){
+  const root=document.documentElement, b=document.querySelector('.theme-toggle'); if(!b) return;
+  const paint=()=>{ const dark=root.getAttribute('data-theme')!=='light'; b.textContent=dark?'切換淺色':'切換深色'; b.setAttribute('aria-pressed',String(!dark)); };
+  b.addEventListener('click',()=>{ const next=root.getAttribute('data-theme')==='light'?'dark':'light'; root.setAttribute('data-theme',next);
+    try{ localStorage.setItem('theme',next); }catch(e){} paint(); });
+  paint();
+  // 回到頂端：捲超過約 1.5 個螢幕才出現（2026-11-27）
+  const top=document.querySelector('.to-top');
+  if(top){ const tick=()=>top.classList.toggle('show', scrollY > innerHeight*1.5);
+    addEventListener('scroll',tick,{passive:true}); tick();
+    top.addEventListener('click',()=>{ scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); }); }
+  // 漲跌顏色：台股（紅漲綠跌）｜美股（綠漲紅跌）兩段式，旁邊用色點標出現在的對應（2026-11-27 Robert 改成國旗兩段式）
+  const g=document.querySelector('.updn'); if(!g) return;
+  const paintU=()=>{ const us=root.getAttribute('data-updn')==='us';
+    g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.v==='us')===us)));
+  };
+  g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ const us=b.dataset.v==='us';
+    if(us) root.setAttribute('data-updn','us'); else root.removeAttribute('data-updn');
+    try{ localStorage.setItem('updn',us?'us':'tw'); }catch(e){} paintU(); }));
+  paintU();
+})();
+</script>
+</body>
+</html>

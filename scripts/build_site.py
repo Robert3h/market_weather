@@ -1962,11 +1962,21 @@ THEME_JS = """<script>
 </script>"""
 
 
+# 分頁小圖示：深底白色雨雲（2026-11-27 Robert）。本機預覽台用橘底，兩個分頁一眼分得出來。
+# 寫成 data URI，色碼用 %23 而不是 #，才不會被上面的 PALETTE 換成 CSS 變數
+FAVICON = ('<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 72 72\'%3E'
+           '%3Crect width=\'72\' height=\'72\' rx=\'16\' fill=\'%2322262e\'/%3E'
+           '%3Cg fill=\'none\' stroke=\'%23fff\' stroke-width=\'6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E'
+           '%3Cpath d=\'M20 40h32a10 10 0 0 0 0-20 14 14 0 0 0-26-4 10 10 0 0 0-6 24z\'/%3E'
+           '%3Cline x1=\'26\' y1=\'50\' x2=\'22\' y2=\'60\' stroke=\'%236b9bf0\'/%3E%3Cline x1=\'38\' y1=\'50\' x2=\'34\' y2=\'60\' stroke=\'%236b9bf0\'/%3E'
+           '%3Cline x1=\'50\' y1=\'50\' x2=\'46\' y2=\'60\' stroke=\'%236b9bf0\'/%3E%3C/g%3E%3C/svg%3E">')
+
+
 def themed(page):
     for dark, (name, _) in PALETTE.items():
         page = re.sub(dark, f"var(--c-{name})", page, flags=re.I)
     page = re.sub(r'\b(fill|stroke)="(var\(--c-[a-z0-9-]+\))"', r'style="\1:\2"', page)   # 靜態 SVG（小走勢圖）
-    page = page.replace("</head>", f"<style>{THEME_CSS}</style>\n{THEME_HEAD}\n</head>", 1)
+    page = page.replace("</head>", f"<style>{THEME_CSS}</style>\n{THEME_HEAD}\n{FAVICON}\n</head>", 1)
     # 2026-11-27 Robert：手冊（使用教學）和維修日誌另開新分頁
     page = re.sub(r'<a href="(guide|logbook)\.html"(?![^>]*target=)', r'<a href="\1.html" target="_blank" rel="noopener"', page)
     page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><div class="updn" role="group" aria-label="漲跌顏色"><button type="button" data-v="tw" aria-pressed="true" title="紅漲綠跌（台灣習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#e8112d"/><rect width="15" height="10" fill="#0a2a8c"/><polygon points="7.50,1.40 8.06,2.92 9.30,1.88 9.02,3.48 10.62,3.20 9.58,4.44 11.10,5.00 9.58,5.56 10.62,6.80 9.02,6.52 9.30,8.12 8.06,7.08 7.50,8.60 6.94,7.08 5.70,8.12 5.98,6.52 4.38,6.80 5.42,5.56 3.90,5.00 5.42,4.44 4.38,3.20 5.98,3.48 5.70,1.88 6.94,2.92" fill="#fff"/><circle cx="7.5" cy="5" r="2.05" fill="#0a2a8c"/><circle cx="7.5" cy="5" r="1.75" fill="#fff"/></svg>台股</button><button type="button" data-v="us" aria-pressed="false" title="綠漲紅跌（美國習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect y="0.000" width="30" height="1.538" fill="#b31942"/><rect y="3.077" width="30" height="1.538" fill="#b31942"/><rect y="6.154" width="30" height="1.538" fill="#b31942"/><rect y="9.231" width="30" height="1.538" fill="#b31942"/><rect y="12.308" width="30" height="1.538" fill="#b31942"/><rect y="15.385" width="30" height="1.538" fill="#b31942"/><rect y="18.462" width="30" height="1.538" fill="#b31942"/><rect width="12" height="10.769" fill="#0a3161"/><circle cx="1.4" cy="1.30" r=".45" fill="#fff"/><circle cx="3.8" cy="1.30" r=".45" fill="#fff"/><circle cx="6.2" cy="1.30" r=".45" fill="#fff"/><circle cx="8.6" cy="1.30" r=".45" fill="#fff"/><circle cx="11.0" cy="1.30" r=".45" fill="#fff"/><circle cx="2.6" cy="3.05" r=".45" fill="#fff"/><circle cx="5.0" cy="3.05" r=".45" fill="#fff"/><circle cx="7.4" cy="3.05" r=".45" fill="#fff"/><circle cx="9.8" cy="3.05" r=".45" fill="#fff"/><circle cx="1.4" cy="4.80" r=".45" fill="#fff"/><circle cx="3.8" cy="4.80" r=".45" fill="#fff"/><circle cx="6.2" cy="4.80" r=".45" fill="#fff"/><circle cx="8.6" cy="4.80" r=".45" fill="#fff"/><circle cx="11.0" cy="4.80" r=".45" fill="#fff"/><circle cx="2.6" cy="6.55" r=".45" fill="#fff"/><circle cx="5.0" cy="6.55" r=".45" fill="#fff"/><circle cx="7.4" cy="6.55" r=".45" fill="#fff"/><circle cx="9.8" cy="6.55" r=".45" fill="#fff"/><circle cx="1.4" cy="8.30" r=".45" fill="#fff"/><circle cx="3.8" cy="8.30" r=".45" fill="#fff"/><circle cx="6.2" cy="8.30" r=".45" fill="#fff"/><circle cx="8.6" cy="8.30" r=".45" fill="#fff"/><circle cx="11.0" cy="8.30" r=".45" fill="#fff"/><circle cx="2.6" cy="10.05" r=".45" fill="#fff"/><circle cx="5.0" cy="10.05" r=".45" fill="#fff"/><circle cx="7.4" cy="10.05" r=".45" fill="#fff"/><circle cx="9.8" cy="10.05" r=".45" fill="#fff"/></svg>美股</button><span class="updn-key" title="上漲、下跌現在的顏色"><b class="k-up">▲</b><b class="k-dn">▼</b></span></div>', page, count=1, flags=re.S)

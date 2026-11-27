@@ -26,7 +26,7 @@ CALENDAR_DAYS = 30   # 天氣日曆格數
 HISTORY_DAYS = 400   # 晴雨只算最近這麼多個台股交易日（日曆、連續天數夠用）
 TPE = dt.timezone(dt.timedelta(hours=8))   # 一律用台灣時間（GitHub Actions 的機器是 UTC）
 YIELDS = ("us10y", "tw10y")   # 殖利率：顯示成 %，漲跌用「個百分點」（2026-11-24 加台債）
-DIGITS = {"taiex": 2, "otc": 2, "spx": 2, "dji": 2, "ixic": 2, "2330": 1, "vix": 2, "us10y": 3, "tw10y": 3, "usdtwd": 3, "2330_pe": 2, "gold": 1, "btc": 0}   # 走勢圖數字的小數位
+DIGITS = {"taiex": 2, "otc": 2, "txn": 0, "spx": 2, "dji": 2, "ixic": 2, "2330": 1, "vix": 2, "us10y": 3, "tw10y": 3, "usdtwd": 3, "2330_pe": 2, "gold": 1, "btc": 0}   # 走勢圖數字的小數位
 
 UP, DN, FLAT = "#ef6a5f", "#3fb27f", "#a7a59e"   # 紅漲綠跌（台股習慣），風向組用灰色
 WEATHER = {
@@ -40,6 +40,7 @@ GROUP_IDS = {"台股": "list", "美股": "us", "風向": "wind", "其他資產":
 ROWS = [
     ("taiex", "加權指數", "TAIEX", "台股", "price"),
     ("otc", "櫃買指數", "TPEx · 上櫃股票", "台股", "price"),   # 2026-11-24 加（櫃買中心）
+    ("txn", "台指期夜盤", "TX 近月 · 前一晚 15:00～05:00 · 漲跌和前一天結算比", "台股", "price"),   # 2026-11-27 加（期交所）
     ("2330", "台積電", "2330", "台股", "price"),
     ("spx", "標普 500", "S&P 500", "美股", "price"),
     ("dji", "道瓊工業", "DJIA", "美股", "price"),                 # 2026-11-24 加
@@ -51,15 +52,15 @@ ROWS = [
     ("tsm", "台積電 ADR", "TSM", "美股", "price"),
     ("vix", "VIX 恐慌指數", "20 以下算平靜", "風向", "point"),
     ("us10y", "美債 10 年殖利率", "US10Y", "風向", "point"),
-    ("tw10y", "台債 10 年殖利率", "指標公債 · 櫃買中心", "風向", "point"),   # 2026-11-24 加
+    ("tw10y", "台債 10 年殖利率", "指標公債 · 櫃買中心 · 沒成交的日子官方沿用前一筆", "風向", "point"),   # 2026-11-24 加
     ("usdtwd", "美元兌台幣", "USD/TWD", "風向", "point"),
     ("gold", "黃金", "紐約期貨 · 美元／盎司", "其他資產", "price"),   # 2026-11-22 加：只看走勢，和其他資產比較
     ("btc", "比特幣", "BTC · 美元 · 週末也交易", "其他資產", "price"),
 ]
-SOURCES_TEXT = "證交所（台股）、櫃買中心（櫃買指數、台債 10 年）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）"
+SOURCES_TEXT = "證交所（台股）、櫃買中心（櫃買指數、台債 10 年）、期交所（台指期夜盤）、Yahoo Finance（美股、VIX、美債、匯率、黃金、比特幣）、國發會（景氣燈號，政府資料開放平台）"
 
 # 國發會景氣對策信號：燈號 → (顏色, 分數範圍)。顏色從冷到熱，和國發會圖一樣藍→綠→紅
-NDC_LIGHTS = [("藍", "#3d6fd1", "9–16"), ("黃藍", "#8fb8e8", "17–22"), ("綠", "#3fb27f", "23–31"),
+NDC_LIGHTS = [("藍", "#3d6fd1", "9–16"), ("黃藍", "#8fb8e8", "17–22"), ("綠", "#3fb380", "23–31"),
               ("黃紅", "#f0a03c", "32–37"), ("紅", "#e5484d", "38–45")]
 NDC_RANGES = [("1Y", "1年"), ("3Y", "3年"), ("5Y", "5年"), ("10Y", "10年"), ("20Y", "20年"), ("MAX", "最長")]
 NDC_LEAD, NDC_COIN = "#ecebe6", "#7fa7d9"   # 領先、同時指標（不含趨勢）線的顏色
@@ -139,6 +140,8 @@ def reason_text(day):
 def fmt_value(code, v):
     if code in ("taiex", "otc", "spx", "dji", "ixic"):
         return f"{v:,.2f}"
+    if code == "txn":
+        return f"{v:,.0f}"
     if code == "2330":
         return f"{v:,.0f}" if v == int(v) else f"{v:,.1f}"
     if code in YIELDS:
@@ -154,12 +157,30 @@ def fmt_value(code, v):
     return f"{v:,.2f}"
 
 
+# 台指期夜盤的漲跌用期交所官方「漲跌價」（和前一天日盤結算價比），不是夜盤和前一晚夜盤比（2026-11-27）
+OFFICIAL_PCT = {}   # code → 最新一天的漲跌幅（%），build() 時從 data/txn.csv 的 change 欄算
+
+
+def load_official_pct():
+    f = DATA_DIR / "txn.csv"
+    if f.exists():
+        with f.open(encoding="utf-8") as fh:
+            r = list(csv.DictReader(fh))
+        if r:
+            c, ch = float(r[-1]["close"]), float(r[-1]["change"])
+            OFFICIAL_PCT["txn"] = ch / (c - ch) * 100 if c != ch else 0.0
+
+
+def day_pct(code, s):
+    return OFFICIAL_PCT[code] if code in OFFICIAL_PCT else pct(s, len(s) - 1)
+
+
 def fmt_change(code, kind, series):
     if len(series) < 2:
         return "—", FLAT
     a, b = series[-2][1], series[-1][1]
     if kind == "price":
-        c = (b / a - 1) * 100
+        c = day_pct(code, series)
         arrow = "▲" if c > 0 else "▼" if c < 0 else "－"
         return f"{arrow} {abs(c):.2f}%", UP if c > 0 else DN if c < 0 else FLAT
     c = b - a
@@ -656,7 +677,7 @@ def chart_block(code, kind):
                  '<button type="button" data-m="pe" aria-pressed="false">本益比</button></div>\n  ')
         legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
                    f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span></p>')
-    mk = "台股" if code in ("taiex", "otc", "2330", "usdtwd", "tw10y") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
+    mk = "台股" if code in ("taiex", "otc", "txn", "2330", "usdtwd", "tw10y") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
     return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}" data-mk="{mk}"{suf}{pe_attr}>
   {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
@@ -691,7 +712,7 @@ def notable(series_map):
     notes, big_up, big_dn = [], [], []
     for code, name, _, group, kind in ROWS:
         s = series_map[code]
-        if len(s) < 61 or kind != "price" or group == "其他資產":   # 黃金、比特幣只看走勢，不列進「值得注意」（比特幣常常一天動 2% 以上）
+        if len(s) < 61 or kind != "price" or group == "其他資產" or code == "txn":   # 夜盤只當開盤參考（2026-11-27）   # 黃金、比特幣只看走勢，不列進「值得注意」（比特幣常常一天動 2% 以上）
             continue
         c = pct(s, len(s) - 1)
         if abs(c) < 2:
@@ -1561,16 +1582,16 @@ GROUP_JS = r"""
 
 
 def tint(hex_color, alpha):
-    """'#ef6a5f', 0.3 → 'rgba(239,106,95,0.30)'：磚塊底色（深淺兩種主題都疊在底色上）"""
-    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
-    return f"rgba({r},{g},{b},{alpha:.2f})"
+    """'#ef6a5f', 0.3 → color-mix(…30%…)：磚塊底色（深淺主題都疊在底色上）。
+    2026-11-27 從 rgba 改成 color-mix：色碼會被 themed() 換成 --c-up／--c-down，漲跌顏色切換時才會跟著換。"""
+    return f"color-mix(in srgb,{hex_color} {alpha * 100:.0f}%,transparent)"
 
 
 def tile(code, name, kind, s, stale):
     """一塊磚：名稱、今天漲跌、最新數字。漲跌類（price）顏色深淺＝漲跌幅（4% 以上最深）；點數類不上紅綠。"""
     chg, _ = fmt_change(code, kind, s)
     if kind == "price" and len(s) >= 2:
-        c = pct(s, len(s) - 1)
+        c = day_pct(code, s)
         bg = tint(UP if c > 0 else DN, 0.10 + 0.45 * min(abs(c) / 4, 1)) if c else "#1f2126"
     else:
         bg = "#1f2126"
@@ -1615,6 +1636,7 @@ PALETTE = {   # 深色色碼: (變數名稱, 淺色色碼)
     "#eb9474": ("accent-strong", "#8f3f20"),
     "#ef6a5f": ("up", "#c5302a"),        # 紅漲：白底上要深一點才看得清楚
     "#3fb27f": ("down", "#18794e"),      # 綠跌
+    "#3fb380": ("ndc-green", "#18794e"),  # 景氣綠燈：和「跌」分開，漲跌顏色切換時不跟著變（2026-11-27）
     "#6b9bf0": ("rain", "#2a62c9"),
     "#e0a95a": ("ma60", "#a96d12"),
     "#7fa7d9": ("ma240", "#3b6aa8"),
@@ -1625,11 +1647,15 @@ THEME_CSS = (":root{color-scheme:dark;" + "".join(f"--c-{n}:{d};" for d, (n, _) 
              ':root[data-theme="light"]{color-scheme:light;' + "".join(f"--c-{n}:{l};" for _, (n, l) in PALETTE.items()) + "}"
              ".theme-toggle{font:inherit;font-size:13px;color:var(--c-muted);background:transparent;border:1px solid var(--c-rule3);"
              "border-radius:6px;padding:0 10px;min-height:32px;margin-left:8px;cursor:pointer;white-space:nowrap;flex:none}"
+             # 漲跌顏色切換（2026-11-27 Robert）：預設紅漲綠跌（台灣），data-updn="us" 時綠漲紅跌（美國）；晴雨日曆配色不變
+             ':root[data-updn="us"]{--c-up:#3fb27f;--c-down:#ef6a5f}'
+             ':root[data-theme="light"][data-updn="us"]{--c-up:#18794e;--c-down:#c5302a}'
              ".theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}"
              ".theme-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
              "@media (max-width:480px){.theme-toggle{order:2;margin-left:auto;min-height:30px}.site-header nav{order:3}}")
-THEME_HEAD = ("<script>/* 畫面出現前套用上次選的主題，避免閃一下 */try{if(localStorage.getItem('theme')==='light')"
-              "document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>")
+THEME_HEAD = ("<script>/* 畫面出現前套用上次選的主題和漲跌顏色，避免閃一下 */try{if(localStorage.getItem('theme')==='light')"
+              "document.documentElement.setAttribute('data-theme','light');"
+              "if(localStorage.getItem('updn')==='us')document.documentElement.setAttribute('data-updn','us');}catch(e){}</script>")
 THEME_JS = """<script>
 (function(){
   const root=document.documentElement, b=document.querySelector('.theme-toggle'); if(!b) return;
@@ -1637,6 +1663,13 @@ THEME_JS = """<script>
   b.addEventListener('click',()=>{ const next=root.getAttribute('data-theme')==='light'?'dark':'light'; root.setAttribute('data-theme',next);
     try{ localStorage.setItem('theme',next); }catch(e){} paint(); });
   paint();
+  const u=document.querySelector('.updn-toggle'); if(!u) return;
+  const paintU=()=>{ const us=root.getAttribute('data-updn')==='us'; u.textContent=us?'漲跌：綠漲紅跌':'漲跌：紅漲綠跌';
+    u.setAttribute('aria-pressed',String(us)); u.title='點一下切換成'+(us?'紅漲綠跌（台灣習慣）':'綠漲紅跌（美國習慣）'); };
+  u.addEventListener('click',()=>{ const us=root.getAttribute('data-updn')!=='us';
+    if(us) root.setAttribute('data-updn','us'); else root.removeAttribute('data-updn');
+    try{ localStorage.setItem('updn',us?'us':'tw'); }catch(e){} paintU(); });
+  paintU();
 })();
 </script>"""
 
@@ -1646,13 +1679,14 @@ def themed(page):
         page = re.sub(dark, f"var(--c-{name})", page, flags=re.I)
     page = re.sub(r'\b(fill|stroke)="(var\(--c-[a-z0-9-]+\))"', r'style="\1:\2"', page)   # 靜態 SVG（小走勢圖）
     page = page.replace("</head>", f"<style>{THEME_CSS}</style>\n{THEME_HEAD}\n</head>", 1)
-    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button>', page, count=1, flags=re.S)
+    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><button type="button" class="theme-toggle updn-toggle" aria-pressed="false">漲跌：紅漲綠跌</button>', page, count=1, flags=re.S)
     return page.replace("</body>", THEME_JS + "\n</body>", 1)
 
 
 # ---------- 組頁面 ----------
 def build():
     series_map = {code: load(code) for code, *_ in ROWS}
+    load_official_pct()
     missing = [name for code, name, *_ in ROWS if not series_map[code]]
     hist = weather_history(series_map["taiex"], series_map["spx"], series_map["vix"])
     if not hist:
@@ -1664,6 +1698,15 @@ def build():
     today = {"date": tx[-1][0], "us_date": sx[-1][0], "tw": pct(tx, len(tx) - 1),
              "spx": pct(sx, len(sx) - 1), "vix": vx[-1][1]}
     today["w"] = w = judge_day(today["tw"], today["spx"], today["vix"])
+    # 台指期夜盤：只在它比台股最新收盤還新時（＝今天台股開盤前）顯示一行，收盤後就不顯示，免得拿過去的夜盤誤導（2026-11-27）
+    night_line = ""
+    nt = series_map.get("txn") or []
+    if nt and nt[-1][0] > tx[-1][0] and "txn" in OFFICIAL_PCT:
+        c = OFFICIAL_PCT["txn"]
+        col = UP if c > 0 else DN if c < 0 else FLAT
+        night_line = (f'<p class="night">台指期夜盤（{md(nt[-1][0])} 05:00 收）<b>{nt[-1][1]:,.0f}</b>，'
+                      f'比前一天結算 <b style="color:{col}">{"▲" if c > 0 else "▼" if c < 0 else "－"} {abs(c):.2f}%</b>'
+                      f'<span>　參考 {md(nt[-1][0])} 台股開盤方向，不是收盤預測</span></p>')
     streak = 0
     for d in reversed(hist):
         if d["w"] != w:
@@ -1720,7 +1763,8 @@ def build():
             if s[-1][0] < newest[group]:
                 stale = f'<small class="stale">資料停在 {md(s[-1][0])}</small>'
             group_tiles.append(tile(code, name, kind, s, bool(stale)))
-            stats_in.append((kind, s))
+            if code != "txn":   # 夜盤跟著加權指數，不重複算進組的漲跌統計
+                stats_in.append((kind, s))
             rows_html.append(f"""<details id="i-{code}">
   <summary class="row">
     <span class="name">{name}<small>{sub}</small>{stale}</span>
@@ -1813,6 +1857,7 @@ main{{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:22px}}
 .hero .word{{font-size:76px;font-weight:700;line-height:1}}
 .why{{margin:0;font-size:16px;line-height:1.6;color:#c9c7c0}}
 .dates{{margin:4px 0 0;font-size:13px;color:#8f8d87}}
+.night{{margin:8px 0 0;font-size:14px;color:#c9c7c0}}.night span{{color:#8f8d87;font-size:12px}}
 .block{{border-top:1px solid #262930;padding-top:14px;display:flex;flex-direction:column;gap:6px}}
 .block p{{margin:0;font-size:15px;line-height:1.6}}
 h2{{margin:0;font-size:13px;font-weight:600;color:#a7a59e;letter-spacing:.06em}}
@@ -1972,7 +2017,7 @@ tr.inside td{{white-space:normal;font-size:12px;line-height:1.6;color:#8f8d87;pa
       </div>
       <div>
         <p class="why">{html.escape(reason_text(today))}{streak_txt}</p>
-        <p class="dates">台股 {md(today['date'])} 收盤 · 美股 {md(today['us_date'])} 收盤</p>
+        <p class="dates">台股 {md(today['date'])} 收盤 · 美股 {md(today['us_date'])} 收盤</p>{night_line}
       </div>
       {notes_html}
       <section class="block">

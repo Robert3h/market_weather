@@ -11,6 +11,7 @@
 台股兩個指標：較早的歷史用 Yahoo 補，近 13 個月以證交所官方數字為準（同一天會覆蓋 Yahoo）。
 另外抓國發會景氣燈號（每月）→ data/ndc_signal.csv（month,score,light,leading,coincident），每次整份覆蓋。
 聯準會升降息（政策事件，2026-11-23）→ data/events_fed.csv（date,effective,market,text,url），每次整份重寫，已查過的聲明稿網址沿用。
+台指期夜盤（2026-11-27）→ data/txn.csv（date,close,source,change），期交所歷史行情下載，2017-05 起。
 台灣央行理監事會（政策事件，2026-11-24）→ data/events_cbc.csv（date,kind,market,text,url），kind＝升息／降息／維持／空白（判斷不出來）；
 平常只看央行列表第 1 頁，已讀過的新聞稿不再讀。
 """
@@ -21,6 +22,7 @@ import json
 import re
 import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -248,6 +250,67 @@ def fetch_tpex_bond10y(_, months):
                 save_csv("tw10y", rows, "TPEx 公債殖利率曲線")
                 print(f"     台債 10 年：已讀 {n} 個檔，到 {date}（已存檔）", flush=True)
     return rows, "TPEx 公債殖利率曲線"
+
+
+# 台指期夜盤（期交所「盤後交易」，2026-11-27 加）：期交所歷史行情下載（POST，Big5 CSV，一次最多一個月，2017-05-15 起有夜盤）。
+# 期交所把夜盤記在「隔天」：標成 D 日的盤後＝D-1 15:00 到 D 05:00，也就是 D 日台股開盤前那一場。
+# 每天取「近月」合約（到期月份 6 碼裡最小的；週合約 202611W4 這種不算）。漲跌＝期交所官方「漲跌價」（和前一天日盤結算價比）。
+TAIFEX_DOWN = "https://www.taifex.com.tw/cht/3/futDataDown"
+TAIFEX_NIGHT_START = "201705"
+
+
+def fetch_taifex_night(months):
+    """{date: (夜盤收盤, 官方漲跌點數)}，months＝往回抓幾個月。"""
+    import calendar
+    out = {}
+    today = dt.datetime.now(TPE).date()
+    for ym in month_starts(months):
+        y, m = int(ym[:4]), int(ym[4:6])
+        end = min(dt.date(y, m, calendar.monthrange(y, m)[1]), today)
+        body = urllib.parse.urlencode({"down_type": "1", "commodity_id": "TX",
+                                       "queryStartDate": f"{y}/{m:02d}/01", "queryEndDate": end.strftime("%Y/%m/%d")}).encode()
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(TAIFEX_DOWN, data=body, headers=UA)
+                with urllib.request.urlopen(req, timeout=90) as r:
+                    text = r.read().decode("cp950", "replace")
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(10)
+        if not text.startswith("交易日期"):
+            raise ValueError(f"期交所 {ym} 回應不是 CSV（可能查詢區間太長或格式改了）")
+        best = {}   # date → (到期月份, 收盤, 漲跌)
+        for r in csv.reader(text.splitlines()[1:]):
+            if len(r) < 18 or r[17].strip() != "盤後" or r[1].strip() != "TX":
+                continue
+            mon = r[2].strip()
+            if not (len(mon) == 6 and mon.isdigit()) or r[6].strip() in ("", "-"):
+                continue
+            d = r[0].strip().replace("/", "-")
+            if d not in best or mon < best[d][0]:
+                best[d] = (mon, num(r[6]), num(r[7]) if r[7].strip() not in ("", "-") else 0.0)
+        out.update({d: (c, ch) for d, (_, c, ch) in best.items()})
+        time.sleep(1)
+    return out
+
+
+def save_taifex_night(rows):
+    """data/txn.csv：date,close,source,change（change＝官方漲跌點數，網站用它算「比前一天結算」的漲跌幅）。"""
+    f = DATA_DIR / "txn.csv"
+    old = {}
+    if f.exists():
+        with f.open(encoding="utf-8") as fh:
+            old = {r["date"]: (float(r["close"]), float(r["change"])) for r in csv.DictReader(fh)}
+    old.update(rows)
+    with f.open("w", encoding="utf-8", newline="") as fh:
+        w = csv.writer(fh, lineterminator=chr(10))
+        w.writerow(["date", "close", "source", "change"])
+        for d in sorted(old):
+            c, ch = old[d]
+            w.writerow([d, f"{c:g}", "TAIFEX 台指期夜盤（近月）", f"{ch:g}"])
+    return len(old)
 
 
 def fetch_yahoo(symbol, full=False):
@@ -592,8 +655,13 @@ def main():
                 rows, source = fetch_yahoo(param, full=full)
             elif kind in TPEX_FULL:   # 櫃買中心：沒有備案來源，失敗就記 FAIL
                 rows, source = SOURCES[kind](param, months_since(TPEX_FULL[kind]) if full else TWSE_MONTHS_DAILY)
-                if not rows and kind == "tpex_bond10y" and not full:
-                    print(f"     {name:<18} 沒有新的日子")
+                if not rows and kind == "tpex_bond10y" and not full:   # 沒有新檔也記一筆 OK，看得出有跑（2026-11-27）
+                    total = count_rows(code)
+                    with (DATA_DIR / f"{code}.csv").open(encoding="utf-8") as fh:
+                        last = list(csv.DictReader(fh))[-1]["date"]
+                    log(args.where, code, source, "OK", last, total, "沒有新的日子")
+                    print(f"OK   {name:<18} 沒有新的日子，最新仍是 {last}")
+                    ok += 1
                     continue
             else:
                 try:
@@ -656,6 +724,21 @@ def main():
         except Exception as e:
             log(args.where, "events_fed", "federalreserve.gov", "FAIL", "", 0, repr(e)[:200])
             print(f"FAIL {'聯準會升降息':<18} {e!r}"[:200])
+
+    if not args.only or "txn" in args.only:   # 台指期夜盤（期交所）
+        try:
+            full = args.full or count_rows("txn") < FULL_THRESHOLD
+            rows = fetch_taifex_night(months_since(TAIFEX_NIGHT_START) if full else TWSE_MONTHS_DAILY)
+            if not rows:
+                raise ValueError("期交所沒有回傳夜盤資料")
+            total = save_taifex_night(rows)
+            last = max(rows)
+            log(args.where, "txn", "TAIFEX futDataDown", "OK", last, total)
+            print(f"OK   {'台指期夜盤':<18} 最新 {last}  {rows[last][0]:g}（{rows[last][1]:+g}）  （共 {total} 天）")
+            ok += 1
+        except Exception as e:
+            log(args.where, "txn", "TAIFEX futDataDown", "FAIL", "", 0, repr(e)[:200])
+            print(f"FAIL {'台指期夜盤':<18} {e!r}"[:200])
 
     if not args.only or "events_cbc" in args.only:   # 政策事件：台灣央行理監事會
         try:

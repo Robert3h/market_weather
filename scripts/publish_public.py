@@ -25,7 +25,9 @@ REMOTE_URL = "https://github.com/Robert3h/market_weather.git"
 PUBLIC_PATHS = ["README.md", ".gitignore", ".github", "scripts", "data", "website"]   # 只有這些會公開
 # 這些由 GitHub Actions 每天更新，以 GitHub 上的為準（2026-11-22 前網頁資料夾叫 docs）。
 # 不含 website/History/：歷史版本只在本機新增，整個 website/ 同步會把剛存的版本目錄蓋回舊的（2026-11-22 發生過）。
-SYNC_PATHS = ["data", "website/index.html", "website/series"]
+SYNC_PATHS = ["data", "website/index.html", "website/series",
+              # 2026-11-27 補：這三頁 GitHub 每天也會重建（例如回測「資料截至」日期），不同步的話本機舊版會被推上去蓋掉線上新版
+              "website/backtest.html", "website/guide.html", "website/logbook.html"]
 LOCAL_FIRST = ["data/events_manual.csv"]   # 同步時例外：Robert 手填，以本機為準
 SSL = ["-c", "http.sslBackend=schannel"] if os.name == "nt" else []
 

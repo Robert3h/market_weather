@@ -1391,7 +1391,14 @@ def deck_pair(folder, name, alts=None, eager=2):
           f'<span class="pos" aria-live="polite">1 / {len(v)}</span>'
           '<button type="button" class="next" aria-label="下一張">›</button><button type="button" class="fs">全螢幕</button></div></div>'
         for r, v in sets.items() if v)
-    return f'<div class="pick" role="group" aria-label="選擇版本">{picks}</div>\n  {decks}'
+    # 2026-11-27 Robert：可以下載 PDF（publish_guide.py 把 PDF 和 JPG 放在同一個資料夾）
+    pdfs = [(r, f) for r in DECK_LABEL for f in sorted((OUT.parent / folder / r).glob("*.pdf"))]
+    dls = ""
+    if pdfs:
+        dls = ('<p class="dls">下載 PDF：' + "　".join(
+            f'<a href="{folder}/{r}/{f.name}" download>{DECK_LABEL[r][0]}（{f.stat().st_size / 1048576:.1f} MB）</a>' for r, f in pdfs)
+            + '</p>')
+    return f'<div class="pick" role="group" aria-label="選擇版本">{picks}</div>\n  {dls}\n  {decks}'
 
 
 def guide_page(w, built, nav_links):
@@ -1651,6 +1658,25 @@ THEME_CSS = (":root{color-scheme:dark;" + "".join(f"--c-{n}:{d};" for d, (n, _) 
              ':root[data-updn="us"]{--c-up:#3fb27f;--c-down:#ef6a5f}'
              ':root[data-theme="light"][data-updn="us"]{--c-up:#18794e;--c-down:#c5302a}'
              ".theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}"
+             ".dls{margin:10px 0 4px;font-size:14px;color:var(--c-muted)}"
+             ".dls a{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;margin:4px 6px 4px 0;border:1px solid var(--c-rule3);"
+             "border-radius:6px;color:var(--c-ink);text-decoration:none}.dls a:hover{border-color:var(--c-accent);color:var(--c-accent)}"
+             ".dls a:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
+             # 漲跌顏色兩段式（台股｜美股）：選中的那段橘底；色點用變數，切換時自己變色
+             ".updn{display:flex;align-items:center;gap:0;margin-left:8px;flex:none;font-size:13px}"
+             ".updn button{font:inherit;display:flex;align-items:center;gap:6px;color:var(--c-muted);background:transparent;"
+             "border:1px solid var(--c-rule3);padding:0 10px;min-height:32px;cursor:pointer;white-space:nowrap}"
+             ".updn button:first-child{border-radius:6px 0 0 6px}.updn button:nth-child(2){border-radius:0 6px 6px 0;border-left:0}"
+             ".updn button[aria-pressed=true]{background:var(--c-accent);border-color:var(--c-accent);color:var(--c-bg);font-weight:700}"
+             ".updn button:hover{color:var(--c-accent)}.updn button[aria-pressed=true]:hover{color:var(--c-bg)}"
+             ".updn button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
+             ".updn .flag{width:20px;height:14px;border-radius:2px;flex:none}"
+             ".updn-key{margin-left:10px;color:var(--c-muted);white-space:nowrap}.updn-key b{font-weight:400;color:var(--c-ink2)}"
+             ".updn-key .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px;vertical-align:0}"
+             ".updn-key .dot.up{background:var(--c-up)}.updn-key .dot.dn{background:var(--c-down)}"
+             "@media (max-width:900px){.updn-key{display:none}}"
+             # 手機：只留國旗（字縮成 0 但還在，螢幕報讀和 title 照樣讀得到），才塞得進第一行
+             "@media (max-width:480px){.updn{order:2;margin-left:6px}.updn button{min-height:30px;padding:0 8px;gap:0;font-size:0}}"
              ".theme-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
              "@media (max-width:480px){.theme-toggle{order:2;margin-left:auto;min-height:30px}.site-header nav{order:3}}")
 THEME_HEAD = ("<script>/* 畫面出現前套用上次選的主題和漲跌顏色，避免閃一下 */try{if(localStorage.getItem('theme')==='light')"
@@ -1663,12 +1689,14 @@ THEME_JS = """<script>
   b.addEventListener('click',()=>{ const next=root.getAttribute('data-theme')==='light'?'dark':'light'; root.setAttribute('data-theme',next);
     try{ localStorage.setItem('theme',next); }catch(e){} paint(); });
   paint();
-  const u=document.querySelector('.updn-toggle'); if(!u) return;
-  const paintU=()=>{ const us=root.getAttribute('data-updn')==='us'; u.textContent=us?'漲跌：綠漲紅跌':'漲跌：紅漲綠跌';
-    u.setAttribute('aria-pressed',String(us)); u.title='點一下切換成'+(us?'紅漲綠跌（台灣習慣）':'綠漲紅跌（美國習慣）'); };
-  u.addEventListener('click',()=>{ const us=root.getAttribute('data-updn')!=='us';
+  // 漲跌顏色：台股（紅漲綠跌）｜美股（綠漲紅跌）兩段式，旁邊用色點標出現在的對應（2026-11-27 Robert 改成國旗兩段式）
+  const g=document.querySelector('.updn'); if(!g) return;
+  const paintU=()=>{ const us=root.getAttribute('data-updn')==='us';
+    g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.v==='us')===us)));
+    g.querySelector('.k-up').textContent=us?'綠':'紅'; g.querySelector('.k-dn').textContent=us?'紅':'綠'; };
+  g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ const us=b.dataset.v==='us';
     if(us) root.setAttribute('data-updn','us'); else root.removeAttribute('data-updn');
-    try{ localStorage.setItem('updn',us?'us':'tw'); }catch(e){} paintU(); });
+    try{ localStorage.setItem('updn',us?'us':'tw'); }catch(e){} paintU(); }));
   paintU();
 })();
 </script>"""
@@ -1679,7 +1707,9 @@ def themed(page):
         page = re.sub(dark, f"var(--c-{name})", page, flags=re.I)
     page = re.sub(r'\b(fill|stroke)="(var\(--c-[a-z0-9-]+\))"', r'style="\1:\2"', page)   # 靜態 SVG（小走勢圖）
     page = page.replace("</head>", f"<style>{THEME_CSS}</style>\n{THEME_HEAD}\n</head>", 1)
-    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><button type="button" class="theme-toggle updn-toggle" aria-pressed="false">漲跌：紅漲綠跌</button>', page, count=1, flags=re.S)
+    # 2026-11-27 Robert：手冊（使用教學）和維修日誌另開新分頁
+    page = re.sub(r'<a href="(guide|logbook)\.html"(?![^>]*target=)', r'<a href="\1.html" target="_blank" rel="noopener"', page)
+    page = re.sub(r'(<nav aria-label="(?:網站導覽|跳到這一頁的區塊)">.*?</nav>)', r'\1\n    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><div class="updn" role="group" aria-label="漲跌顏色"><button type="button" data-v="tw" aria-pressed="true" title="紅漲綠跌（台灣習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#e8112d"/><rect width="15" height="10" fill="#0a2a8c"/><polygon points="7.50,1.40 8.06,2.92 9.30,1.88 9.02,3.48 10.62,3.20 9.58,4.44 11.10,5.00 9.58,5.56 10.62,6.80 9.02,6.52 9.30,8.12 8.06,7.08 7.50,8.60 6.94,7.08 5.70,8.12 5.98,6.52 4.38,6.80 5.42,5.56 3.90,5.00 5.42,4.44 4.38,3.20 5.98,3.48 5.70,1.88 6.94,2.92" fill="#fff"/><circle cx="7.5" cy="5" r="2.05" fill="#0a2a8c"/><circle cx="7.5" cy="5" r="1.75" fill="#fff"/></svg>台股</button><button type="button" data-v="us" aria-pressed="false" title="綠漲紅跌（美國習慣）"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#fff"/><rect y="0.000" width="30" height="1.538" fill="#b31942"/><rect y="3.077" width="30" height="1.538" fill="#b31942"/><rect y="6.154" width="30" height="1.538" fill="#b31942"/><rect y="9.231" width="30" height="1.538" fill="#b31942"/><rect y="12.308" width="30" height="1.538" fill="#b31942"/><rect y="15.385" width="30" height="1.538" fill="#b31942"/><rect y="18.462" width="30" height="1.538" fill="#b31942"/><rect width="12" height="10.769" fill="#0a3161"/><circle cx="1.4" cy="1.30" r=".45" fill="#fff"/><circle cx="3.8" cy="1.30" r=".45" fill="#fff"/><circle cx="6.2" cy="1.30" r=".45" fill="#fff"/><circle cx="8.6" cy="1.30" r=".45" fill="#fff"/><circle cx="11.0" cy="1.30" r=".45" fill="#fff"/><circle cx="2.6" cy="3.05" r=".45" fill="#fff"/><circle cx="5.0" cy="3.05" r=".45" fill="#fff"/><circle cx="7.4" cy="3.05" r=".45" fill="#fff"/><circle cx="9.8" cy="3.05" r=".45" fill="#fff"/><circle cx="1.4" cy="4.80" r=".45" fill="#fff"/><circle cx="3.8" cy="4.80" r=".45" fill="#fff"/><circle cx="6.2" cy="4.80" r=".45" fill="#fff"/><circle cx="8.6" cy="4.80" r=".45" fill="#fff"/><circle cx="11.0" cy="4.80" r=".45" fill="#fff"/><circle cx="2.6" cy="6.55" r=".45" fill="#fff"/><circle cx="5.0" cy="6.55" r=".45" fill="#fff"/><circle cx="7.4" cy="6.55" r=".45" fill="#fff"/><circle cx="9.8" cy="6.55" r=".45" fill="#fff"/><circle cx="1.4" cy="8.30" r=".45" fill="#fff"/><circle cx="3.8" cy="8.30" r=".45" fill="#fff"/><circle cx="6.2" cy="8.30" r=".45" fill="#fff"/><circle cx="8.6" cy="8.30" r=".45" fill="#fff"/><circle cx="11.0" cy="8.30" r=".45" fill="#fff"/><circle cx="2.6" cy="10.05" r=".45" fill="#fff"/><circle cx="5.0" cy="10.05" r=".45" fill="#fff"/><circle cx="7.4" cy="10.05" r=".45" fill="#fff"/><circle cx="9.8" cy="10.05" r=".45" fill="#fff"/></svg>美股</button><span class="updn-key">▲ 上升 <i class="dot up"></i><b class="k-up">紅</b>　▼ 下滑 <i class="dot dn"></i><b class="k-dn">綠</b></span></div>', page, count=1, flags=re.S)
     return page.replace("</body>", THEME_JS + "\n</body>", 1)
 
 

@@ -412,6 +412,7 @@ def compare_block(has_ndc):
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
   <p class="note">上下排：每張圖各自刻度，手指移動時每張圖標出同一天，虛線是期間起點。疊在一起：每條線都從期間起點算 0%，看誰強誰弱。台股、美股休市日不同，以最晚收盤的那個市場對齊日期。{"景氣燈號是國發會每月公布的分數（約每月 27 日公布上個月），一整個月畫成同一個高度；上下排時看分數增減（背景顏色是燈號的分數區間），疊在一起時和其他指標一樣算變化 %，只供參考。線下方的色帶是每個月的燈號。" if has_ndc else ""}</p>
+  {XP_MENU}
   </div>
 </div>"""
 
@@ -454,7 +455,7 @@ function cmpRender(box) {
   const lastDay = s => s.d.days[s.d.days.length - 1];
   const ref = ser.reduce((a, b) => lastDay(b) > lastDay(a) ? b : a);   // 用最晚收盤的那個指標對齊日期
   const T0 = r === "MAX" ? Math.max(...ser.map(s => s.d.days[0])) : ref.d.days[startIndex(ref.d.days, r)];   // 最長＝大家都有資料的那天起
-  const T1 = lastDay(ref);
+  const T1 = lastDay(ref); box._T1 = iso(T1);   // 存圖時寫「資料至」
   for (const s of ser) {
     s.i0 = Math.max(0, lastLE(s.d.days, T0)); s.last = s.d.days.length - 1; s.base = s.d.c[s.i0];
     s.pct = i => (s.d.c[i] / s.base - 1) * 100;
@@ -1223,9 +1224,16 @@ document.querySelectorAll(".ddbtn").forEach(btn => btn.addEventListener("click",
 function chartImage(box) {
   const svg = box.querySelector(".plot svg");
   if (!svg) return Promise.reject(new Error("no chart"));
-  const row = box.closest("details"), nameEl = row.querySelector(".name");
-  const name = nameEl ? (nameEl.firstChild.textContent || "").trim() : box.dataset.code;
-  const src = nameEl && nameEl.querySelector("small") ? nameEl.querySelector("small").textContent.trim() : "";
+  const isCmp = box.classList.contains("cmp");   // 比較圖（2026-11-27 Robert：「疊圖也要可以下載」）
+  const row = box.closest("details"), nameEl = row && row.querySelector(".name");
+  const name = isCmp ? "比較" : nameEl ? (nameEl.firstChild.textContent || "").trim() : box.dataset.code;
+  const src = isCmp ? (box._mode === "overlay" ? "疊在一起：每條線從期間起點算漲跌 %" : "上下排：每張圖各自刻度")
+    : nameEl && nameEl.querySelector("small") ? nameEl.querySelector("small").textContent.trim() : "";
+  const data = box._mode === "pe" ? box._pe : box._data;
+  const last = isCmp ? (box._T1 || "") : data ? iso(data.days[data.days.length - 1]) : "";
+  const srcOf = c => c === "ndc" ? "國發會" : ((document.querySelector(`.chart[data-code="${c}"]`) || {dataset: {}}).dataset.src || "");
+  const from = isCmp ? [...new Set((box._sel || []).map(srcOf).filter(Boolean))].join("、")
+    : box._mode === "pe" ? box.dataset.pesrc : box.dataset.src;
   const cs = getComputedStyle(box), font = getComputedStyle(document.body).fontFamily;
   const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const bg = css("--c-bg") || getComputedStyle(document.body).backgroundColor, ink = css("--c-ink") || cs.color, muted = css("--c-muted") || "gray";
@@ -1245,33 +1253,49 @@ function chartImage(box) {
     const img = new Image();
     img.onerror = fail;
     img.onload = () => {
-      const S = 2, pad = 20, titleH = 30, readH = 26, legs = [...box.querySelectorAll(".legend:not([hidden]) span")];
-      const legH = legs.length ? 22 : 0, narrow = W < 520, footH = narrow ? 50 : 34;   // 手機的圖窄：頁尾分兩行
-      const cw = W + pad * 2, chh = pad + titleH + readH + H + legH + footH;
+      const S = 2, pad = 20, titleH = 30, LH = 22, legs = [...box.querySelectorAll(".legend:not([hidden]) span")];
+      const cw = W + pad * 2, maxX = cw - pad, FS = 14;
+      // 期間、漲跌那一行：每一段照網頁上的顏色畫；放不下就換行（比較圖最多 5 個指標、手機圖窄）
+      const m = document.createElement("canvas").getContext("2d");
+      const ro = box.querySelector(".readout"), roColor = getComputedStyle(ro).color;
+      const draw = (g, n, color, st, paint) => {    // 畫（或只量）一個節點，st.x 往右推
+        if (n.nodeType === 3) {
+          if (!n.textContent) return;
+          if (paint) { g.fillStyle = color; g.fillText(n.textContent, st.x, st.y); }
+          st.x += g.measureText(n.textContent).width;
+        } else if (n.nodeType === 1) {
+          const s = getComputedStyle(n), was = g.font;
+          if (+s.fontWeight >= 600) g.font = `700 ${FS}px ${font}`;
+          n.childNodes.forEach(c => draw(g, c, s.color, st, paint)); g.font = was;
+        }
+      };
+      m.font = `${FS}px ${font}`;
+      const place = [];                             // 每一段：放在第幾行、x 多少
+      let line = 0, px = pad;
+      for (const n of ro.childNodes) {
+        const st = {x: 0, y: 0}; draw(m, n, roColor, st, false);
+        const blank = n.nodeType === 3 && !n.textContent.trim();
+        if (px + st.x > maxX && px > pad) { line++; px = pad; if (blank) continue; }
+        if (blank && px === pad) continue;
+        place.push([n, line, px]); px += st.x;
+      }
+      const readH = (line + 1) * LH + 6;
+      m.font = `12px ${font}`;
+      const f1 = `資料至 ${last}${from ? "　來源：" + from : ""}`, f2 = "股市晴雨表 robert3h.github.io/market_weather";
+      const two = m.measureText(f1 + "　" + f2).width > cw - pad * 2;   // 頁尾放不下就分兩行
+      const legH = legs.length ? 22 : 0, footH = two ? 50 : 34;
+      const chh = pad + titleH + readH + H + legH + footH;
       const cv = document.createElement("canvas"); cv.width = cw * S; cv.height = chh * S;
       const g = cv.getContext("2d"); g.scale(S, S);
       g.fillStyle = bg; g.fillRect(0, 0, cw, chh);
       g.textBaseline = "alphabetic";
-      let y = pad + 18;
+      let y = pad + 18, x;
       g.font = `700 18px ${font}`; g.fillStyle = ink; g.fillText(name, pad, y);
       const nw = g.measureText(name).width;
       if (src && cw - pad * 2 - nw - 10 > 40) { g.font = `13px ${font}`; g.fillStyle = muted; g.fillText(src, pad + nw + 10, y, cw - pad * 2 - nw - 10); }
-      y += readH;                                   // 期間、漲跌那一行：每一段照網頁上的顏色畫；手機圖窄，太長就把字縮小
-      const ro = box.querySelector(".readout");
-      g.font = `14px ${font}`;
-      const fs = Math.max(10, Math.min(14, 14 * (cw - pad * 2) / (g.measureText(ro.textContent).width + 8)));
-      g.font = `${fs}px ${font}`;
-      let x = pad;
-      const walk = (node, color) => node.childNodes.forEach(n => {
-        if (n.nodeType === 3) { if (!n.textContent) return; g.fillStyle = color; g.fillText(n.textContent, x, y); x += g.measureText(n.textContent).width; }
-        else if (n.nodeType === 1) {
-          const s = getComputedStyle(n), was = g.font;
-          if (s.fontWeight >= 600) g.font = `700 ${fs}px ${font}`;
-          walk(n, s.color); g.font = was;
-        }
-      });
-      walk(ro, getComputedStyle(ro).color);
-      g.drawImage(img, pad, pad + titleH + readH - 4, W, H);
+      g.font = `${FS}px ${font}`;
+      for (const [n, ln, x0] of place) draw(g, n, roColor, {x: x0, y: pad + titleH + 14 + ln * LH}, true);
+      g.drawImage(img, pad, pad + titleH + readH, W, H);
       y = pad + titleH + readH + H;
       if (legs.length) {                            // 圖例：虛線＋文字
         x = pad; g.font = `12px ${font}`;
@@ -1283,11 +1307,8 @@ function chartImage(box) {
         }
         y += legH;
       }
-      const data = box._mode === "pe" ? box._pe : box._data, last = data ? iso(data.days[data.days.length - 1]) : "";
-      const from = box._mode === "pe" ? box.dataset.pesrc : box.dataset.src;
-      const f1 = `資料至 ${last}${from ? "　來源：" + from : ""}`, f2 = "股市晴雨表 robert3h.github.io/market_weather";
       g.font = `12px ${font}`; g.fillStyle = muted;
-      if (narrow) { g.fillText(f1, pad, y + 20, cw - pad * 2); g.fillText(f2, pad, y + 37, cw - pad * 2); }
+      if (two) { g.fillText(f1, pad, y + 20, cw - pad * 2); g.fillText(f2, pad, y + 37, cw - pad * 2); }
       else g.fillText(f1 + "　" + f2, pad, y + 20, cw - pad * 2);
       cv.toBlob(bl => bl ? ok({blob: bl, url: cv.toDataURL("image/png"), name, last}) : fail(new Error("toBlob")), "image/png");
     };
@@ -1297,8 +1318,8 @@ function chartImage(box) {
 function xpName(box, info) {
   return `股市晴雨表_${info.name}_${RANGE_LABEL[box._range] || box._range}_資料至${info.last}.png`.replace(/[\\/:*?"<>|\s]+/g, "");
 }
-document.querySelectorAll(".chart .xp").forEach(xp => {
-  const box = xp.closest(".chart"), msg = xp.querySelector(".xp-msg");
+document.querySelectorAll(".xp").forEach(xp => {
+  const box = xp.closest(".chart, .cmp"), msg = xp.querySelector(".xp-msg");
   const say = t => { msg.textContent = t; clearTimeout(xp._t); xp._t = setTimeout(() => { msg.textContent = ""; }, 4000); };
   const copyBtn = xp.querySelector('[data-x="copy"]');
   if (!(navigator.clipboard && window.ClipboardItem)) copyBtn.hidden = true;   // 不支援複製圖片的瀏覽器就不顯示這一項

@@ -683,10 +683,11 @@ def chart_block(code, kind):
         f'<button type="button" data-r="{r}"{" aria-pressed=true" if r == "1Y" else " aria-pressed=false"}>{label}</button>'
         for r, label in RANGES)
     suf = ' data-suf="%"' if code in YIELDS else ""
-    legend = ""
+    # 灰色水平虛線＝期間起點（2026-11-27 Robert：「每張線圖都有橫向的虛線，那到底是什麼？我忘記了」→ 加進圖例）
+    legend = ('<span title="選的期間第一天的收盤；走勢線在它上面＝比那天高"><i style="border-color:#5a5d64"></i>期間起點</span>')
     if kind == "price":   # 均線圖例：季線、年線（顏色和 JS 的 MA_LINES 一致）
-        legend = "".join(f'<span><i style="border-color:{col}"></i>{label}</span>' for _, col, label in MA_LINES)
-        legend = f'<p class="legend" data-for="price">{legend}</p>'
+        legend += "".join(f'<span><i style="border-color:{col}"></i>{label}</span>' for _, col, label in MA_LINES)
+    legend = f'<p class="legend" data-for="price">{legend}</p>'
     modes, pe_attr = "", ""
     pe_code = PE_FOR.get(code)
     if pe_code and (DATA_DIR / f"{pe_code}.csv").exists():   # 有本益比資料才出現「股價｜本益比」切換
@@ -700,13 +701,30 @@ def chart_block(code, kind):
                  f'<button type="button" data-m="pe" aria-pressed="false">本益比{pe_flag}</button></div>\n  ')
         legend += (f'<p class="legend" data-for="pe" hidden><span><i style="border-color:{PE_MEAN}"></i>期間平均</span>'
                    f'<span><i style="border-color:{PE_BAND}"></i>±1 標準差</span><span>（{PE_NOTE.get(pe_code, "")}）</span>{pe_warn}</p>')
+    src_attr = f' data-src="{SRC_OF.get(code, "Yahoo Finance")}"'
+    if pe_code:
+        src_attr += f' data-pesrc="{SRC_OF.get(pe_code, "")}"'
     mk = "台股" if code in ("taiex", "otc", "txn", "2330", "usdtwd", "tw10y") else "美股"   # 事件的「市場」：台股事件只標在台股、台幣
-    return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}" data-mk="{mk}"{suf}{pe_attr}>
+    return f"""<div class="chart" data-code="{code}" data-kind="{kind}" data-dg="{DIGITS.get(code, 2)}" data-mk="{mk}"{suf}{pe_attr}{src_attr}>
   {modes}<div class="ranges" role="group" aria-label="選擇期間">{buttons}</div>
   <p class="readout" aria-live="polite">載入中…</p>
   <div class="plot"></div>
   <p class="evline" aria-live="polite"></p>{legend}
+  {XP_MENU}
 </div>"""
+
+
+# 存圖時圖片底下寫的資料來源（和 SOURCES_TEXT 一致；沒列的是 Yahoo Finance）
+SRC_OF = {"taiex": "證交所", "2330": "證交所", "otc": "櫃買中心", "tw10y": "櫃買中心", "txn": "期交所",
+          "2330_pe": "證交所", "spx_pe": "multpl.com"}
+# 存圖（2026-11-27 Robert）：每張走勢圖右下角一顆淡色小按鈕，照現在的深淺色、漲跌顏色輸出；圖片底下自動加資料日期和來源
+XP_MENU = ('<details class="xp"><summary title="複製圖片、下載 PNG、列印或存 PDF">'
+           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+           '<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>存圖</summary>'
+           '<div class="xp-menu"><button type="button" data-x="copy">複製圖片</button>'
+           '<button type="button" data-x="png">下載 PNG</button>'
+           '<button type="button" data-x="pdf">列印／存 PDF</button></div>'
+           '<span class="xp-msg" aria-live="polite"></span></details>')
 
 
 MA_LINES = [(60, "#e0a95a", "季線 60 日"), (240, "#7fa7d9", "年線 240 日")]   # 移動平均線：天數、顏色、名稱（只是參考座標）
@@ -815,6 +833,47 @@ def deepest_inside(s, t_, r_):
     return None
 
 
+def swing_fact(code, kind, s):
+    """平常一天震多大（2026-11-27 Robert：標準差區間放掉，改加這一行）。
+    用近一年「每天的漲跌」實際排名（中位數、九成），不假設常態分布：真正的大跌比常態分布說的更常發生。
+    價格類和匯率用 %，殖利率用「個百分點」，VIX 用「點」。夜盤的漲跌是和前一天結算比，不是收盤對收盤，不算。"""
+    if code == "txn":
+        return ""
+    cut = (dt.date.fromisoformat(s[-1][0]) - dt.timedelta(days=365)).isoformat()
+    i0 = next((i for i, x in enumerate(s) if x[0] > cut), len(s))
+    if code in YIELDS:
+        unit, dg, ch = " 個百分點", 2, lambda i: s[i][1] - s[i - 1][1]
+    elif kind == "price" or code == "usdtwd":
+        unit, dg, ch = "%", 2, lambda i: (s[i][1] / s[i - 1][1] - 1) * 100
+    else:
+        unit, dg, ch = " 點", 1, lambda i: s[i][1] - s[i - 1][1]
+    moves = [(s[i][0], ch(i)) for i in range(max(i0, 1), len(s))]
+    if len(moves) < 60:
+        return ""
+    size = sorted(abs(m) for _, m in moves)
+    q = lambda p: size[min(len(size) - 1, int(p * len(size)))]
+    half, ninety = q(0.5), q(0.9)
+    big_d, big_m = max(moves, key=lambda x: abs(x[1]))
+    last_d, last_m = moves[-1]
+    arrow = lambda m: ("▲" if m > 0 else "▼" if m < 0 else "－")
+    col = lambda m: (UP if m > 0 else DN) if kind == "price" else FLAT
+    v = lambda m: f'<b style="color:{col(m)}">{arrow(m)} {abs(m):.{dg}f}{unit}</b>'
+    bigger = sum(1 for _, m in moves[:-1] if abs(m) > abs(last_m))
+    if abs(last_m) <= half:
+        how = "算平常"
+    elif abs(last_m) <= ninety:
+        how = "偏大，但近一年常見"
+    elif bigger:
+        how = f"少見：近一年只有 {bigger} 天震得比它大"
+    else:
+        how = "近一年震得最大的一天"
+    return (f'<div class="fact"><h3>平常一天震多大</h3>'
+            f'<p>近一年 {len(moves)} 個交易日：一半的日子漲跌在 ±{half:.{dg}f}{unit} 以內，九成在 ±{ninety:.{dg}f}{unit} 以內；'
+            f'最大一天 {v(big_m)}（{big_d}）。</p>'
+            f'<p>最新一天（{last_d}）{v(last_m)}：{how}。</p>'
+            f'<p class="note">這是過去一年的實際紀錄，不是預測；市場緊張時，會連續好幾天震得比平常大。</p></div>')
+
+
 def facts_block(code, kind, s):
     """展開後、走勢圖下面的固定數字。價格類：距最高點、52 週高低、過去大跌；點數類只有 52 週高低。"""
     if len(s) < 2:
@@ -833,6 +892,9 @@ def facts_block(code, kind, s):
       <span class="lo">{f(lo_v)}<small>{lo_d}</small></span><span class="hi">{f(hi_v)}<small>{hi_d}</small></span>
     </div>
   </div>"""]
+    vol = swing_fact(code, kind, s)
+    if vol:
+        parts.append(vol)
     if kind != "price":
         return f'<div class="facts">{"".join(parts)}</div>'
 
@@ -1155,6 +1217,125 @@ document.querySelectorAll(".ddbtn").forEach(btn => btn.addEventListener("click",
   if (on) box.querySelector('.ranges button[data-r="MAX"]').click(); else render(box);
   if (on) box.scrollIntoView({block: "nearest"});
 }));
+
+// ---------- 存圖（2026-11-27）：把現在畫面上的走勢圖畫到 canvas，照目前的深淺色、漲跌顏色 ----------
+// 頁面顏色是 CSS 變數，SVG 單獨變成圖片時讀不到 → 先把每個元素「實際算出來的顏色」寫死在複本上
+function chartImage(box) {
+  const svg = box.querySelector(".plot svg");
+  if (!svg) return Promise.reject(new Error("no chart"));
+  const row = box.closest("details"), nameEl = row.querySelector(".name");
+  const name = nameEl ? (nameEl.firstChild.textContent || "").trim() : box.dataset.code;
+  const src = nameEl && nameEl.querySelector("small") ? nameEl.querySelector("small").textContent.trim() : "";
+  const cs = getComputedStyle(box), font = getComputedStyle(document.body).fontFamily;
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const bg = css("--c-bg") || getComputedStyle(document.body).backgroundColor, ink = css("--c-ink") || cs.color, muted = css("--c-muted") || "gray";
+  const vb = svg.viewBox.baseVal, W = vb.width, H = vb.height;
+  const copy = svg.cloneNode(true), a = svg.querySelectorAll("*"), b = copy.querySelectorAll("*");
+  a.forEach((o, k) => {
+    const s = getComputedStyle(o), t = b[k];
+    if (s.visibility === "hidden" || s.display === "none") { t.remove(); return; }   // 滑鼠十字線、圓點不要
+    let st = `fill:${s.fill};stroke:${s.stroke};fill-opacity:${s.fillOpacity};stroke-opacity:${s.strokeOpacity};stroke-width:${s.strokeWidth};stroke-dasharray:${s.strokeDasharray};paint-order:${s.paintOrder}`;
+    if (o.tagName === "text") st += `;font-family:${font};font-size:${s.fontSize};font-weight:${s.fontWeight};font-variant-numeric:tabular-nums`;
+    t.setAttribute("style", st);
+  });
+  copy.setAttribute("xmlns", SVGNS); copy.setAttribute("width", W); copy.setAttribute("height", H);
+  copy.removeAttribute("class");
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(copy));
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.onerror = fail;
+    img.onload = () => {
+      const S = 2, pad = 20, titleH = 30, readH = 26, legs = [...box.querySelectorAll(".legend:not([hidden]) span")];
+      const legH = legs.length ? 22 : 0, narrow = W < 520, footH = narrow ? 50 : 34;   // 手機的圖窄：頁尾分兩行
+      const cw = W + pad * 2, chh = pad + titleH + readH + H + legH + footH;
+      const cv = document.createElement("canvas"); cv.width = cw * S; cv.height = chh * S;
+      const g = cv.getContext("2d"); g.scale(S, S);
+      g.fillStyle = bg; g.fillRect(0, 0, cw, chh);
+      g.textBaseline = "alphabetic";
+      let y = pad + 18;
+      g.font = `700 18px ${font}`; g.fillStyle = ink; g.fillText(name, pad, y);
+      const nw = g.measureText(name).width;
+      if (src && cw - pad * 2 - nw - 10 > 40) { g.font = `13px ${font}`; g.fillStyle = muted; g.fillText(src, pad + nw + 10, y, cw - pad * 2 - nw - 10); }
+      y += readH;                                   // 期間、漲跌那一行：每一段照網頁上的顏色畫；手機圖窄，太長就把字縮小
+      const ro = box.querySelector(".readout");
+      g.font = `14px ${font}`;
+      const fs = Math.max(10, Math.min(14, 14 * (cw - pad * 2) / (g.measureText(ro.textContent).width + 8)));
+      g.font = `${fs}px ${font}`;
+      let x = pad;
+      const walk = (node, color) => node.childNodes.forEach(n => {
+        if (n.nodeType === 3) { if (!n.textContent) return; g.fillStyle = color; g.fillText(n.textContent, x, y); x += g.measureText(n.textContent).width; }
+        else if (n.nodeType === 1) {
+          const s = getComputedStyle(n), was = g.font;
+          if (s.fontWeight >= 600) g.font = `700 ${fs}px ${font}`;
+          walk(n, s.color); g.font = was;
+        }
+      });
+      walk(ro, getComputedStyle(ro).color);
+      g.drawImage(img, pad, pad + titleH + readH - 4, W, H);
+      y = pad + titleH + readH + H;
+      if (legs.length) {                            // 圖例：虛線＋文字
+        x = pad; g.font = `12px ${font}`;
+        for (const l of legs) {
+          const i = l.querySelector("i");
+          if (i) { g.strokeStyle = getComputedStyle(i).borderTopColor; g.lineWidth = 2; g.setLineDash([4, 3]);
+            g.beginPath(); g.moveTo(x, y + 4); g.lineTo(x + 18, y + 4); g.stroke(); g.setLineDash([]); x += 23; }
+          g.fillStyle = muted; g.fillText(l.textContent, x, y + 8); x += g.measureText(l.textContent).width + 14;
+        }
+        y += legH;
+      }
+      const data = box._mode === "pe" ? box._pe : box._data, last = data ? iso(data.days[data.days.length - 1]) : "";
+      const from = box._mode === "pe" ? box.dataset.pesrc : box.dataset.src;
+      const f1 = `資料至 ${last}${from ? "　來源：" + from : ""}`, f2 = "股市晴雨表 robert3h.github.io/market_weather";
+      g.font = `12px ${font}`; g.fillStyle = muted;
+      if (narrow) { g.fillText(f1, pad, y + 20, cw - pad * 2); g.fillText(f2, pad, y + 37, cw - pad * 2); }
+      else g.fillText(f1 + "　" + f2, pad, y + 20, cw - pad * 2);
+      cv.toBlob(bl => bl ? ok({blob: bl, url: cv.toDataURL("image/png"), name, last}) : fail(new Error("toBlob")), "image/png");
+    };
+    img.src = url;
+  });
+}
+function xpName(box, info) {
+  return `股市晴雨表_${info.name}_${RANGE_LABEL[box._range] || box._range}_資料至${info.last}.png`.replace(/[\\/:*?"<>|\s]+/g, "");
+}
+document.querySelectorAll(".chart .xp").forEach(xp => {
+  const box = xp.closest(".chart"), msg = xp.querySelector(".xp-msg");
+  const say = t => { msg.textContent = t; clearTimeout(xp._t); xp._t = setTimeout(() => { msg.textContent = ""; }, 4000); };
+  const copyBtn = xp.querySelector('[data-x="copy"]');
+  if (!(navigator.clipboard && window.ClipboardItem)) copyBtn.hidden = true;   // 不支援複製圖片的瀏覽器就不顯示這一項
+  xp.addEventListener("click", ev => {
+    const btn = ev.target.closest("button[data-x]"); if (!btn) return;
+    const act = btn.dataset.x;
+    if (act === "copy") {   // Safari 要在點擊當下就呼叫 clipboard.write，所以把「做圖」的 Promise 直接交給它
+      const p = chartImage(box);
+      navigator.clipboard.write([new ClipboardItem({"image/png": p.then(r => r.blob)})])
+        .then(() => { say("已複製，可以直接貼到 PPT、LINE"); })
+        .catch(() => say("這個瀏覽器不能複製圖片，請改用「下載 PNG」"));
+      return;
+    }
+    chartImage(box).then(info => {
+      if (act === "png") {
+        const file = new File([info.blob], xpName(box, info), {type: "image/png"});
+        if (matchMedia("(pointer:coarse)").matches && navigator.canShare && navigator.canShare({files: [file]})) {
+          navigator.share({files: [file]}).catch(() => {});   // 手機：叫出分享選單，可以存到相簿
+        } else {
+          const a = document.createElement("a"); a.href = URL.createObjectURL(info.blob); a.download = file.name;
+          document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }
+        say("已存成圖片");
+      } else {               // 只印這一張圖：放進列印專用的框，印完拿掉；在列印視窗選「另存為 PDF」就是 PDF
+        let pr = document.getElementById("xp-print");
+        if (!pr) { pr = document.createElement("div"); pr.id = "xp-print"; document.body.appendChild(pr); }
+        const im = new Image(); im.alt = info.name + "走勢圖"; im.src = info.url;
+        pr.replaceChildren(im);
+        const done = () => { document.documentElement.classList.remove("print1"); pr.replaceChildren(); removeEventListener("afterprint", done); };
+        addEventListener("afterprint", done);
+        document.documentElement.classList.add("print1");
+       
+        im.decode().catch(() => {}).then(() => window.print());
+      }
+    }).catch(() => say("圖還沒畫好，請先展開走勢圖"));
+  });
+});
 let resizeTimer;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
@@ -1693,6 +1874,23 @@ THEME_CSS = (":root{color-scheme:dark;" + "".join(f"--c-{n}:{d};" for d, (n, _) 
              "@media (min-width:900px){.to-top{right:24px;bottom:24px}}"
              "@media (prefers-reduced-motion:reduce){.to-top{transition:none}}"
              "body:has(:fullscreen) .to-top{display:none}"
+             # 存圖（2026-11-27）：走勢圖右下角，平常淡淡的，滑過或點開才明顯
+             ".xp{display:block;text-align:right;margin:4px 0 0;font-size:12px}"
+             ".xp summary{list-style:none;display:inline-flex;align-items:center;gap:4px;min-height:30px;padding:0 10px;border-radius:15px;"
+             "border:1px solid transparent;color:var(--c-muted);opacity:.6;cursor:pointer;user-select:none}"
+             ".xp summary::-webkit-details-marker{display:none}.xp summary svg{width:14px;height:14px}"
+             ".xp summary:hover,.xp[open] summary{opacity:1;color:var(--c-accent);border-color:var(--c-rule3)}"
+             ".xp summary:focus-visible{opacity:1;outline:2px solid var(--c-accent);outline-offset:2px}"
+             ".xp-menu{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;margin-top:4px}"
+             ".xp-menu button{font:inherit;min-height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--c-rule3);background:transparent;color:var(--c-ink);cursor:pointer}"
+             ".xp-menu button:hover{border-color:var(--c-accent);color:var(--c-accent)}"
+             ".xp-menu button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}"
+             ".xp-menu button[hidden]{display:none}"
+             ".xp-msg{display:block;margin-top:4px;color:var(--c-muted)}.xp-msg:empty{display:none}"
+             "#xp-print{display:none}"
+             "@media print{html.print1 body>*:not(#xp-print){display:none!important}"
+             "html.print1 #xp-print{display:block}html.print1 #xp-print img{width:100%;height:auto}"
+             "html.print1,html.print1 body{background:#fff!important;margin:0}}"
              ".dls{margin:10px 0 4px;font-size:14px;color:var(--c-muted)}"
              ".dls a{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;margin:4px 6px 4px 0;border:1px solid var(--c-rule3);"
              "border-radius:6px;color:var(--c-ink);text-decoration:none}.dls a:hover{border-color:var(--c-accent);color:var(--c-accent)}"

@@ -41,15 +41,15 @@ ul{margin:0;padding-left:1.2em;color:var(--c-ink2);font-size:14px;line-height:1.
 .site-header nav{margin-left:0;width:100%;justify-content:space-between}.site-header nav a{padding:0 4px}
 table{font-size:12px}th,td{padding:6px 4px}h1{font-size:24px}}
 .brand .icon{color:var(--c-rain)}</style>
-<style>:root{color-scheme:dark;--c-bg:#14161a;--c-surface:#181a1f;--c-surface2:#1c1f24;--c-surface3:#1f2126;--c-rule0:#1f2227;--c-rule:#262930;--c-rule2:#2c2f36;--c-rule3:#3a3d44;--c-faint:#5a5d64;--c-muted2:#8f8d87;--c-muted:#a7a59e;--c-ink2:#c9c7c0;--c-ink:#ecebe6;--c-accent:#d97757;--c-accent-strong:#eb9474;--c-up:#ef6a5f;--c-down:#3fb27f;--c-rain:#6b9bf0;--c-ma60:#e0a95a;--c-ma240:#7fa7d9;--c-teal:#5fc4b8;--c-pink:#d58fb5;}:root[data-theme="light"]{color-scheme:light;--c-bg:#ffffff;--c-surface:#f6f3f1;--c-surface2:#f6f3f1;--c-surface3:#f0ece9;--c-rule0:#eceef0;--c-rule:#e3e5e8;--c-rule2:#dfe1e5;--c-rule3:#c4c7cc;--c-faint:#9aa0a6;--c-muted2:#686c71;--c-muted:#5f6368;--c-ink2:#3c4043;--c-ink:#1b1c1e;--c-accent:#b4532e;--c-accent-strong:#8f3f20;--c-up:#c5302a;--c-down:#18794e;--c-rain:#2a62c9;--c-ma60:#a96d12;--c-ma240:#3b6aa8;--c-teal:#12806f;--c-pink:#a8487c;}.theme-toggle{font:inherit;font-size:13px;color:var(--c-muted);background:transparent;border:1px solid var(--c-rule3);border-radius:6px;padding:0 10px;min-height:32px;margin-left:8px;cursor:pointer;white-space:nowrap;flex:none}.theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}.theme-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}@media (max-width:480px){.theme-toggle{order:2;margin-left:auto;min-height:30px}.site-header nav{order:3}}</style>
-<script>/* 畫面出現前套用上次選的主題，避免閃一下 */try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
+<style>:root{color-scheme:dark;--c-bg:#14161a;--c-surface:#181a1f;--c-surface2:#1c1f24;--c-surface3:#1f2126;--c-rule0:#1f2227;--c-rule:#262930;--c-rule2:#2c2f36;--c-rule3:#3a3d44;--c-faint:#5a5d64;--c-muted2:#8f8d87;--c-muted:#a7a59e;--c-ink2:#c9c7c0;--c-ink:#ecebe6;--c-accent:#d97757;--c-accent-strong:#eb9474;--c-up:#ef6a5f;--c-down:#3fb27f;--c-ndc-green:#3fb380;--c-rain:#6b9bf0;--c-ma60:#e0a95a;--c-ma240:#7fa7d9;--c-teal:#5fc4b8;--c-pink:#d58fb5;}:root[data-theme="light"]{color-scheme:light;--c-bg:#ffffff;--c-surface:#f6f3f1;--c-surface2:#f6f3f1;--c-surface3:#f0ece9;--c-rule0:#eceef0;--c-rule:#e3e5e8;--c-rule2:#dfe1e5;--c-rule3:#c4c7cc;--c-faint:#9aa0a6;--c-muted2:#686c71;--c-muted:#5f6368;--c-ink2:#3c4043;--c-ink:#1b1c1e;--c-accent:#b4532e;--c-accent-strong:#8f3f20;--c-up:#c5302a;--c-down:#18794e;--c-ndc-green:#18794e;--c-rain:#2a62c9;--c-ma60:#a96d12;--c-ma240:#3b6aa8;--c-teal:#12806f;--c-pink:#a8487c;}.theme-toggle{font:inherit;font-size:13px;color:var(--c-muted);background:transparent;border:1px solid var(--c-rule3);border-radius:6px;padding:0 10px;min-height:32px;margin-left:8px;cursor:pointer;white-space:nowrap;flex:none}:root[data-updn="us"]{--c-up:#3fb27f;--c-down:#ef6a5f}:root[data-theme="light"][data-updn="us"]{--c-up:#18794e;--c-down:#c5302a}.theme-toggle:hover{color:var(--c-accent);border-color:var(--c-accent)}.theme-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}@media (max-width:480px){.theme-toggle{order:2;margin-left:auto;min-height:30px}.site-header nav{order:3}}</style>
+<script>/* 畫面出現前套用上次選的主題和漲跌顏色，避免閃一下 */try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');if(localStorage.getItem('updn')==='us')document.documentElement.setAttribute('data-updn','us');}catch(e){}</script>
 </head>
 <body>
 <header class="site-header">
   <div class="hwrap">
     <a class="brand" href="index.html"><svg class="icon" viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 42h34a11 11 0 0 0 0-22 15 15 0 0 0-28-4 11 11 0 0 0-6 26z"/><line x1="26" y1="50" x2="22" y2="60"/><line x1="38" y1="50" x2="34" y2="60"/><line x1="50" y1="50" x2="46" y2="60"/></svg><span class="sr">今天雨，回首頁，</span>market_weather</a>
     <nav aria-label="網站導覽"><a href="index.html#today">今天</a><a href="index.html#overview">指標</a><a href="index.html#compare">比較</a><a href="index.html#ndc">景氣</a><a href="backtest.html" aria-current=page>回測</a><a href="guide.html">手冊</a></nav>
-    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button>
+    <button type="button" class="theme-toggle" aria-pressed="false">切換淺色</button><button type="button" class="theme-toggle updn-toggle" aria-pressed="false">漲跌：紅漲綠跌</button>
   </div>
 </header>
 <main>
@@ -104,7 +104,7 @@ table{font-size:12px}th,td{padding:6px 4px}h1{font-size:24px}}
 </main>
 <footer class="site-footer">
   <div class="foot">
-    <p>網頁更新於 2026-11-27 12:34（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
+    <p>網頁更新於 2026-11-27 12:40（台灣時間）。只整理公開行情，用來觀察市場，不是投資建議。</p>
     <p><a href="index.html">回到今天的天氣</a> · <a href="History/index.html">歷史版本</a></p>
     <p><a href="https://robert3h.github.io/lsa711/">Robert Huang 黃星翰</a> 的小工具 · © 2026</p>
   </div>
@@ -116,6 +116,13 @@ table{font-size:12px}th,td{padding:6px 4px}h1{font-size:24px}}
   b.addEventListener('click',()=>{ const next=root.getAttribute('data-theme')==='light'?'dark':'light'; root.setAttribute('data-theme',next);
     try{ localStorage.setItem('theme',next); }catch(e){} paint(); });
   paint();
+  const u=document.querySelector('.updn-toggle'); if(!u) return;
+  const paintU=()=>{ const us=root.getAttribute('data-updn')==='us'; u.textContent=us?'漲跌：綠漲紅跌':'漲跌：紅漲綠跌';
+    u.setAttribute('aria-pressed',String(us)); u.title='點一下切換成'+(us?'紅漲綠跌（台灣習慣）':'綠漲紅跌（美國習慣）'); };
+  u.addEventListener('click',()=>{ const us=root.getAttribute('data-updn')!=='us';
+    if(us) root.setAttribute('data-updn','us'); else root.removeAttribute('data-updn');
+    try{ localStorage.setItem('updn',us?'us':'tw'); }catch(e){} paintU(); });
+  paintU();
 })();
 </script>
 </body>

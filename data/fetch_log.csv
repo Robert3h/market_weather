@@ -894,3 +894,26 @@ run_at,where,indicator,source,status,last_date,rows,note
 2026-11-28 12:16:23,GitHub Actions,txn,TAIFEX futDataDown,OK,2026-11-27,2322,
 2026-11-28 12:16:26,GitHub Actions,events_cbc,cbc.gov.tw,OK,2026-09-17,122,升降息 55 次、維持 64 次
 2026-11-28 12:16:27,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-10,538,
+2026-11-28 16:27:56,GitHub Actions,taiex,TWSE FMTQIK,OK,2026-11-27,7206,
+2026-11-28 16:28:01,GitHub Actions,2330,TWSE STOCK_DAY,OK,2026-11-27,6688,
+2026-11-28 16:28:01,GitHub Actions,tsm,Yahoo TSM,OK,2026-11-27,7329,
+2026-11-28 16:28:03,GitHub Actions,otc,TPEx 櫃買指數,OK,2026-11-27,6735,
+2026-11-28 16:28:03,GitHub Actions,spx,Yahoo ^GSPC,OK,2026-11-27,14349,
+2026-11-28 16:28:03,GitHub Actions,dji,Yahoo ^DJI,OK,2026-11-27,8789,
+2026-11-28 16:28:03,GitHub Actions,ixic,Yahoo ^IXIC,OK,2026-11-27,14071,
+2026-11-28 16:28:03,GitHub Actions,qqq,Yahoo QQQ,OK,2026-11-27,6974,
+2026-11-28 16:28:03,GitHub Actions,smh,Yahoo SMH,OK,2026-11-27,6661,
+2026-11-28 16:28:03,GitHub Actions,sox,Yahoo ^SOX,OK,2026-11-27,8198,
+2026-11-28 16:28:03,GitHub Actions,nvda,Yahoo NVDA,OK,2026-11-27,7006,
+2026-11-28 16:28:04,GitHub Actions,vix,Yahoo ^VIX,OK,2026-11-27,9298,
+2026-11-28 16:28:04,GitHub Actions,us10y,Yahoo ^TNX,OK,2026-11-27,14247,
+2026-11-28 16:28:06,GitHub Actions,tw10y,TPEx 公債殖利率曲線,OK,2026-11-27,5137,沒有新的日子
+2026-11-28 16:28:06,GitHub Actions,usdtwd,Yahoo TWD=X,OK,2026-11-27,5472,
+2026-11-28 16:28:06,GitHub Actions,gold,Yahoo GC=F,OK,2026-11-27,6587,
+2026-11-28 16:28:06,GitHub Actions,btc,Yahoo BTC-USD,OK,2026-11-27,4455,
+2026-11-28 16:28:10,GitHub Actions,2330_pe,TWSE BWIBBU,OK,2026-11-27,5222,
+2026-11-28 16:28:11,GitHub Actions,spx_pe,multpl.com,FAIL,,0,"URLError(ConnectionRefusedError(111, 'Connection refused'))"
+2026-11-28 16:28:11,GitHub Actions,events_fed,federalreserve.gov,OK,2026-09-16,60,60 筆連到聲明稿
+2026-11-28 16:28:14,GitHub Actions,txn,TAIFEX futDataDown,OK,2026-11-27,2322,
+2026-11-28 16:28:17,GitHub Actions,events_cbc,cbc.gov.tw,OK,2026-09-17,122,升降息 55 次、維持 64 次
+2026-11-28 16:28:18,GitHub Actions,ndc_signal,data.gov.tw 6099,OK,2026-10,538,
